@@ -154,16 +154,25 @@ function render() {
   requestAnimationFrame(positionHandles);
 }
 
+function initFontSelect() {
+  const sel = document.getElementById('fontSelect');
+  if (sel.options.length > 0) return; // 이미 채워진 경우 스킵
+  FONTS.forEach(f => {
+    const opt = document.createElement('option');
+    opt.value = f.value;
+    opt.textContent = f.label;
+    sel.appendChild(opt);
+  });
+}
+
 function syncPanelUI() {
-  // sync font select
-  document.getElementById('fontSelect').value = state.font;
-  // sync image size slider
+  initFontSelect(); // 옵션 없으면 채우기
+  const sel = document.getElementById('fontSelect');
+  sel.value = state.font;
   document.getElementById('imageSizeSlider').value = state.imageSizePct;
   document.getElementById('imageSizeVal').textContent = state.imageSizePct + '%';
-  // sync card size inputs
   document.getElementById('cardW').value = Math.round(state.cardW);
   document.getElementById('cardH').value = Math.round(state.cardH);
-  // sync image pos buttons
   document.querySelectorAll('.pos-btn').forEach(b => b.classList.toggle('active', b.dataset.pos === state.imagePos));
 }
 
@@ -199,7 +208,7 @@ function renderCard() {
     cardImageArea.style.width  = cardW + 'px';
     cardImageArea.style.height = imgH + 'px';
     cardContainer.style.flexDirection = imagePos === 'bottom' ? 'column-reverse' : 'column';
-  }
+  } else if (imagePos === 'background') {
     cardImageArea.style.width  = '100%';
     cardImageArea.style.height = '100%';
     cardContainer.style.flexDirection = 'row';

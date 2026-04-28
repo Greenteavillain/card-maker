@@ -556,12 +556,12 @@ const handleS  = document.querySelector('.resize-s');
 const handleSE = document.querySelector('.resize-se');
 
 function positionHandles() {
-  const wrapper = document.querySelector('.canvas-wrapper');
-  const wRect = wrapper.getBoundingClientRect();
+  const inner = document.querySelector('.canvas-inner');
+  const wRect = inner.getBoundingClientRect();
   const cRect = cardContainer.getBoundingClientRect();
 
-  const left = cRect.left - wRect.left + wrapper.scrollLeft;
-  const top  = cRect.top  - wRect.top  + wrapper.scrollTop;
+  const left = cRect.left - wRect.left;
+  const top  = cRect.top  - wRect.top;
   const w = state.cardW;
   const h = state.cardH;
 
@@ -794,7 +794,8 @@ cardContainer.addEventListener('click', e => {
    VERSION HISTORY
    ============================================================ */
 const VERSIONS = [
-  { tag: 'v1.5',   log: '카드 중앙 정렬 복원\n버전 기록 패널 추가' },
+  { tag: 'v1.6',   log: '카드 중앙 정렬 완전 수정\n카드 커져도 스크롤로 처리' },
+  { tag: 'v1.5',   log: '버전 기록 패널 추가' },
   { tag: 'v1.4.2', log: '카드 크기 조절 시 왼쪽 잘림 수정 시도' },
   { tag: 'v1.4.1', log: '이미지 object-fit cover 적용' },
   { tag: 'v1.4',   log: '버전 표시 추가\n이미지 클리핑 수정\n리사이즈 핸들 개선' },

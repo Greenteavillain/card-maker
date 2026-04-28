@@ -557,26 +557,28 @@ const handleSE = document.querySelector('.resize-se');
 
 function positionHandles() {
   const inner = document.querySelector('.canvas-inner');
-  const wRect = inner.getBoundingClientRect();
+  if (!inner) return;
+  const iRect = inner.getBoundingClientRect();
   const cRect = cardContainer.getBoundingClientRect();
 
-  const left = cRect.left - wRect.left;
-  const top  = cRect.top  - wRect.top;
-  const w = state.cardW;
-  const h = state.cardH;
+  // position relative to canvas-inner
+  const left = cRect.left - iRect.left + inner.scrollLeft;
+  const top  = cRect.top  - iRect.top  + inner.scrollTop;
+  const w = cRect.width;
+  const h = cRect.height;
 
-  handleE.style.left   = (left + w + 4) + 'px';
-  handleE.style.top    = (top + h * 0.1) + 'px';
-  handleE.style.width  = '10px';
-  handleE.style.height = (h * 0.8) + 'px';
+  handleE.style.left   = (left + w + 5) + 'px';
+  handleE.style.top    = (top + h * 0.15) + 'px';
+  handleE.style.width  = '8px';
+  handleE.style.height = (h * 0.7) + 'px';
 
-  handleS.style.left   = (left + w * 0.1) + 'px';
-  handleS.style.top    = (top + h + 4) + 'px';
-  handleS.style.width  = (w * 0.8) + 'px';
-  handleS.style.height = '10px';
+  handleS.style.left   = (left + w * 0.15) + 'px';
+  handleS.style.top    = (top + h + 5) + 'px';
+  handleS.style.width  = (w * 0.7) + 'px';
+  handleS.style.height = '8px';
 
-  handleSE.style.left = (left + w + 2) + 'px';
-  handleSE.style.top  = (top + h + 2) + 'px';
+  handleSE.style.left = (left + w + 3) + 'px';
+  handleSE.style.top  = (top + h + 3) + 'px';
 }
 
 document.querySelectorAll('.resize-handle').forEach(handle => {
@@ -794,7 +796,8 @@ cardContainer.addEventListener('click', e => {
    VERSION HISTORY
    ============================================================ */
 const VERSIONS = [
-  { tag: 'v1.6',   log: '카드 중앙 정렬 완전 수정\n카드 커져도 스크롤로 처리' },
+  { tag: 'v1.7',   log: 'canvas-inner position:relative 추가\n리사이즈 핸들 좌표 수정\n이미지 잘림 완전 수정' },
+  { tag: 'v1.6',   log: '카드 중앙 정렬 수정\n스크롤 지원' },
   { tag: 'v1.5',   log: '버전 기록 패널 추가' },
   { tag: 'v1.4.2', log: '카드 크기 조절 시 왼쪽 잘림 수정 시도' },
   { tag: 'v1.4.1', log: '이미지 object-fit cover 적용' },

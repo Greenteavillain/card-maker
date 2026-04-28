@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>카드 메이커</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&family=Noto+Serif+KR:wght@400;600;700;900&family=Black+Han+Sans&family=Gowun+Dodum&family=Gaegu:wght@400;700&family=Jua&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="app">
+    <!-- LEFT PANEL: TOOLS -->
+    <aside class="panel left-panel">
+      <div class="panel-header">
+        <span class="logo">✦ 카드메이커</span>
+      </div>
+
+      <div class="panel-section">
+        <div class="section-label">이미지</div>
+        <label class="upload-btn" id="uploadLabel">
+          <input type="file" id="imageUpload" accept="image/*" hidden />
+          <span class="upload-icon">＋</span>
+          <span>이미지 업로드</span>
+        </label>
+        <div class="image-position-grid" id="imagePositionGrid">
+          <button class="pos-btn active" data-pos="left" title="좌측">◧</button>
+          <button class="pos-btn" data-pos="right" title="우측">◨</button>
+          <button class="pos-btn" data-pos="top" title="상단">⬒</button>
+          <button class="pos-btn" data-pos="bottom" title="하단">⬓</button>
+          <button class="pos-btn" data-pos="background" title="배경">⬜</button>
+        </div>
+        <label class="slider-row">
+          <span>이미지 비율</span>
+          <input type="range" id="imageSizeSlider" min="20" max="70" value="45" />
+          <span id="imageSizeVal">45%</span>
+        </label>
+      </div>
+
+      <div class="panel-section">
+        <div class="section-label">카드 크기</div>
+        <div class="size-presets">
+          <button class="preset-btn active" data-w="900" data-h="500">가로형</button>
+          <button class="preset-btn" data-w="600" data-h="800">세로형</button>
+          <button class="preset-btn" data-w="700" data-h="700">정사각</button>
+          <button class="preset-btn" data-w="1080" data-h="566">유튜브</button>
+        </div>
+        <div class="size-inputs">
+          <label>W <input type="number" id="cardW" value="900" min="300" max="2000" /></label>
+          <span>×</span>
+          <label>H <input type="number" id="cardH" value="500" min="200" max="2000" /></label>
+        </div>
+      </div>
+
+      <div class="panel-section">
+        <div class="section-label">폰트</div>
+        <select id="fontSelect" class="font-select">
+          <option value="'Noto Sans KR', sans-serif">노토 산스</option>
+          <option value="'Noto Serif KR', serif">노토 세리프</option>
+          <option value="'Black Han Sans', sans-serif">블랙 한 산스</option>
+          <option value="'Gowun Dodum', sans-serif">고운 돋움</option>
+          <option value="'Gaegu', cursive">개구</option>
+          <option value="'Jua', sans-serif">주아</option>
+        </select>
+      </div>
+
+      <div class="panel-section">
+        <div class="section-label">배경색</div>
+        <div class="color-swatches">
+          <button class="swatch active" data-color="#ffffff" style="background:#ffffff;border:2px solid #ddd"></button>
+          <button class="swatch" data-color="#fdf6f0" style="background:#fdf6f0"></button>
+          <button class="swatch" data-color="#f0f4fd" style="background:#f0f4fd"></button>
+          <button class="swatch" data-color="#f0fdf4" style="background:#f0fdf4"></button>
+          <button class="swatch" data-color="#fdf0f0" style="background:#fdf0f0"></button>
+          <button class="swatch" data-color="#1a1a2e" style="background:#1a1a2e"></button>
+          <button class="swatch" data-color="#0d1b2a" style="background:#0d1b2a"></button>
+          <label class="swatch custom-color-btn" title="직접 선택">
+            <input type="color" id="bgColorPicker" value="#ffffff" />
+            <span>🎨</span>
+          </label>
+        </div>
+      </div>
+
+      <div class="panel-section">
+        <div class="section-label">강조 색상</div>
+        <div class="color-swatches">
+          <button class="swatch active" data-color="#ff6b9d" style="background:#ff6b9d"></button>
+          <button class="swatch" data-color="#845ec2" style="background:#845ec2"></button>
+          <button class="swatch" data-color="#0081cf" style="background:#0081cf"></button>
+          <button class="swatch" data-color="#00c9a7" style="background:#00c9a7"></button>
+          <button class="swatch" data-color="#f9a825" style="background:#f9a825"></button>
+          <button class="swatch" data-color="#e53935" style="background:#e53935"></button>
+          <button class="swatch" data-color="#333333" style="background:#333333"></button>
+          <label class="swatch custom-color-btn" title="직접 선택">
+            <input type="color" id="accentColorPicker" value="#ff6b9d" />
+            <span>🎨</span>
+          </label>
+        </div>
+      </div>
+
+      <div class="panel-section">
+        <div class="section-label">블록 추가</div>
+        <div class="add-block-btns">
+          <button class="add-block-btn" data-type="title">＋ 제목</button>
+          <button class="add-block-btn" data-type="subtitle">＋ 부제목</button>
+          <button class="add-block-btn" data-type="body">＋ 본문</button>
+          <button class="add-block-btn" data-type="info">＋ 정보 행</button>
+          <button class="add-block-btn" data-type="divider">＋ 구분선</button>
+        </div>
+      </div>
+
+      <div class="panel-bottom">
+        <button class="export-btn" id="exportBtn">PNG 저장</button>
+      </div>
+    </aside>
+
+    <!-- CENTER: CANVAS -->
+    <main class="canvas-area">
+      <div class="canvas-wrapper">
+        <div class="card-container" id="cardContainer">
+          <!-- RESIZE HANDLES -->
+          <div class="resize-handle resize-e" data-dir="e"></div>
+          <div class="resize-handle resize-s" data-dir="s"></div>
+          <div class="resize-handle resize-se" data-dir="se"></div>
+
+          <!-- IMAGE AREA -->
+          <div class="card-image-area" id="cardImageArea">
+            <div class="image-placeholder" id="imagePlaceholder">
+              <span>이미지를<br/>업로드하세요</span>
+            </div>
+            <img id="cardImage" src="" alt="" style="display:none" />
+          </div>
+
+          <!-- TEXT AREA -->
+          <div class="card-text-area" id="cardTextArea">
+            <div class="blocks-container" id="blocksContainer">
+              <!-- blocks rendered by JS -->
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="canvas-hint">모서리·가장자리를 드래그해 카드 크기 조절</div>
+    </main>
+
+    <!-- RIGHT PANEL: BLOCK EDITOR -->
+    <aside class="panel right-panel" id="rightPanel">
+      <div class="panel-header">
+        <span class="logo">블록 편집</span>
+      </div>
+      <div id="blockEditorContent">
+        <div class="no-selection">블록을 클릭하면<br/>여기서 편집할 수 있어요</div>
+      </div>
+    </aside>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

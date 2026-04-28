@@ -2,7 +2,7 @@
    CARD MAKER — APP LOGIC v3
    ============================================= */
 
-const STORAGE_KEY = 'cardmaker_v1';
+const STORAGE_KEY = 'cardmaker_v2';
 
 const state = {
   imagePos: 'left',
@@ -185,7 +185,7 @@ function renderCard() {
     cardImageArea.style.width  = cardW + 'px';
     cardImageArea.style.height = imgH + 'px';
     cardContainer.style.flexDirection = imagePos === 'bottom' ? 'column-reverse' : 'column';
-  } else if (imagePos === 'background') {
+  }
     cardImageArea.style.width  = '100%';
     cardImageArea.style.height = '100%';
     cardContainer.style.flexDirection = 'row';
@@ -812,8 +812,8 @@ cardContainer.addEventListener('click', e => {
    VERSION HISTORY
    ============================================================ */
 const VERSIONS = [
-  { tag: 'v1.8',   log: '이미지 비율 로직 완전 재설계\n높이=카드높이, 너비=원본비율 자동계산\n슬라이더로 크기 배율 조절' },
-  { tag: 'v1.7',   log: 'canvas-inner position 수정\n리사이즈 핸들 좌표 수정' },
+  { tag: 'v1.9',   log: '저장 키 초기화 (예시 글 복원)\n상단/하단 이미지 비율 확인' },
+  { tag: 'v1.8',   log: '이미지 비율 로직 완전 재설계\n높이=카드높이, 너비=원본비율 자동계산' },
   { tag: 'v1.5',   log: '버전 기록 패널 추가' },
   { tag: 'v1.4.2', log: '카드 크기 조절 시 왼쪽 잘림 수정 시도' },
   { tag: 'v1.4.1', log: '이미지 object-fit cover 적용' },

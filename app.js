@@ -137,6 +137,7 @@ function render() {
   renderBlocks();
   renderBlockEditor();
   syncPanelUI();
+  requestAnimationFrame(positionHandles);
 }
 
 function syncPanelUI() {
@@ -550,6 +551,34 @@ function addBlock(type) {
    ============================================================ */
 let resizing = null;
 
+const handleE  = document.querySelector('.resize-e');
+const handleS  = document.querySelector('.resize-s');
+const handleSE = document.querySelector('.resize-se');
+
+function positionHandles() {
+  const wrapper = document.querySelector('.canvas-wrapper');
+  const wRect = wrapper.getBoundingClientRect();
+  const cRect = cardContainer.getBoundingClientRect();
+
+  const left = cRect.left - wRect.left + wrapper.scrollLeft;
+  const top  = cRect.top  - wRect.top  + wrapper.scrollTop;
+  const w = state.cardW;
+  const h = state.cardH;
+
+  handleE.style.left   = (left + w + 4) + 'px';
+  handleE.style.top    = (top + h * 0.1) + 'px';
+  handleE.style.width  = '10px';
+  handleE.style.height = (h * 0.8) + 'px';
+
+  handleS.style.left   = (left + w * 0.1) + 'px';
+  handleS.style.top    = (top + h + 4) + 'px';
+  handleS.style.width  = (w * 0.8) + 'px';
+  handleS.style.height = '10px';
+
+  handleSE.style.left = (left + w + 2) + 'px';
+  handleSE.style.top  = (top + h + 2) + 'px';
+}
+
 document.querySelectorAll('.resize-handle').forEach(handle => {
   handle.addEventListener('mousedown', e => {
     e.preventDefault();
@@ -567,6 +596,7 @@ document.addEventListener('mousemove', e => {
   document.getElementById('cardH').value = Math.round(state.cardH);
   document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
   renderCard();
+  positionHandles();
 });
 
 document.addEventListener('mouseup', () => {
@@ -684,7 +714,7 @@ async function captureCanvas() {
   const prevSel = state.selectedBlockId;
   state.selectedBlockId = null;
   renderBlocks();
-  document.querySelectorAll('.resize-handle').forEach(h => h.style.display='none');
+  [handleE, handleS, handleSE].forEach(h => h.style.display = 'none');
   document.querySelectorAll('.block-controls').forEach(h => h.style.display='none');
 
   let canvas;
@@ -695,7 +725,7 @@ async function captureCanvas() {
       width: state.cardW, height: state.cardH,
     });
   } finally {
-    document.querySelectorAll('.resize-handle').forEach(h => h.style.display='');
+    [handleE, handleS, handleSE].forEach(h => h.style.display = '');
     state.selectedBlockId = prevSel;
     render();
   }

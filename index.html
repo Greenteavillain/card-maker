@@ -123,11 +123,12 @@
     <!-- CENTER: CANVAS -->
     <main class="canvas-area">
       <div class="canvas-wrapper">
+        <!-- RESIZE HANDLES (outside card so overflow:hidden doesn't clip them) -->
+        <div class="resize-handle resize-e" data-dir="e"></div>
+        <div class="resize-handle resize-s" data-dir="s"></div>
+        <div class="resize-handle resize-se" data-dir="se"></div>
+
         <div class="card-container" id="cardContainer">
-          <!-- RESIZE HANDLES -->
-          <div class="resize-handle resize-e" data-dir="e"></div>
-          <div class="resize-handle resize-s" data-dir="s"></div>
-          <div class="resize-handle resize-se" data-dir="se"></div>
 
           <!-- IMAGE AREA -->
           <div class="card-image-area" id="cardImageArea">
@@ -146,6 +147,7 @@
         </div>
       </div>
       <div class="canvas-hint">모서리·가장자리를 드래그해 카드 크기 조절</div>
+      <div class="version-badge">v1.4</div>
     </main>
 
     <!-- RIGHT PANEL: BLOCK EDITOR -->

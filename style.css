@@ -640,6 +640,37 @@ body {
 }
 .del-block-btn:hover { background: rgba(229,57,53,0.25); }
 
+/* ---- INFO GRID ---- */
+.info-grid {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 2px 12px;
+  align-items: baseline;
+}
+.info-label {
+  font-weight: 700;
+  white-space: nowrap;
+}
+.info-value {
+  white-space: pre-wrap;
+}
+
+/* ---- DRAG & DROP ---- */
+.block.dragging {
+  opacity: 0.4;
+  cursor: grabbing;
+}
+.block.drag-over {
+  outline-color: var(--accent) !important;
+  background: rgba(255,107,157,0.06);
+}
+.block[draggable="true"] {
+  cursor: grab;
+}
+.block[draggable="true"]:active {
+  cursor: grabbing;
+}
+
 /* ---- RESPONSIVE ---- */
 @media (max-width: 900px) {
   :root {

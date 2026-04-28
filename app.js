@@ -1,5 +1,5 @@
 /* =============================================
-   CARD MAKER — APP LOGIC
+   CARD MAKER — APP LOGIC v2
    ============================================= */
 
 const state = {
@@ -15,32 +15,65 @@ const state = {
   isDark: false,
 };
 
+/* ============================================================
+   UNDO HISTORY
+   ============================================================ */
+const history = [];
+let historyIndex = -1;
+let suppressHistory = false;
+
+function snapshot() {
+  if (suppressHistory) return;
+  const snap = JSON.stringify({ blocks: state.blocks, selectedBlockId: state.selectedBlockId });
+  history.splice(historyIndex + 1);
+  history.push(snap);
+  if (history.length > 60) history.shift();
+  historyIndex = history.length - 1;
+}
+
+function undo() {
+  if (historyIndex <= 0) return;
+  historyIndex--;
+  suppressHistory = true;
+  const snap = JSON.parse(history[historyIndex]);
+  state.blocks = snap.blocks;
+  state.selectedBlockId = snap.selectedBlockId;
+  suppressHistory = false;
+  render();
+}
+
+document.addEventListener('keydown', e => {
+  if ((e.metaKey || e.ctrlKey) && e.key === 'z') {
+    e.preventDefault();
+    undo();
+  }
+});
+
 let blockIdCounter = 0;
 function nextId() { return ++blockIdCounter; }
 
-/* ---- DEFAULT BLOCKS ---- */
 function initDefaultBlocks() {
   state.blocks = [
-    { id: nextId(), type: 'supertitle', text: '2026 유니 작가의 여행드로잉', fontSize: null, color: null, bold: false, align: 'left' },
-    { id: nextId(), type: 'title',      text: '바다 그리기 특강', fontSize: null, color: null, bold: true,  align: 'left' },
-    { id: nextId(), type: 'subtitle',   text: '선 과제 스케치 해온 후\n수업에 채색 함께 하기', fontSize: null, color: null, bold: false, align: 'left' },
+    { id: nextId(), type: 'supertitle', text: '2026 유니 작가의 여행드로잉', fontSize: 13, color: null, bold: false, align: 'left' },
+    { id: nextId(), type: 'title',      text: '바다 그리기 특강', fontSize: 38, color: null, bold: true,  align: 'left' },
+    { id: nextId(), type: 'subtitle',   text: '선 과제 스케치 해온 후\n수업에 채색 함께 하기', fontSize: 15, color: null, bold: false, align: 'left' },
     { id: nextId(), type: 'divider',    text: '', fontSize: null, color: null, bold: false, align: 'left' },
-    { id: nextId(), type: 'info',       text: '일시\t1차 5월 19일 / 2차 5월 26일 (화요일 낮 2시~4시 30분)', fontSize: null, color: null, bold: false, align: 'left' },
-    { id: nextId(), type: 'info',       text: '장소\t꿈지락 (동천로 24, 302호)', fontSize: null, color: null, bold: false, align: 'left' },
-    { id: nextId(), type: 'info',       text: '수강료\t2회 8만원 (각 차시마다 작품 완성)', fontSize: null, color: null, bold: false, align: 'left' },
-    { id: nextId(), type: 'body',       text: '강사 유니 @yuni_0010', fontSize: null, color: null, bold: false, align: 'left' },
+    { id: nextId(), type: 'info', label: '일시',   value: '1차 5월 19일 / 2차 5월 26일\n화요일 낮 2시~4시 30분', fontSize: 13, color: null, bold: false, align: 'left' },
+    { id: nextId(), type: 'info', label: '장소',   value: '꿈지락 (동천로 24, 302호)', fontSize: 13, color: null, bold: false, align: 'left' },
+    { id: nextId(), type: 'info', label: '수강료', value: '2회 8만원 (각 차시마다 작품 완성)', fontSize: 13, color: null, bold: false, align: 'left' },
+    { id: nextId(), type: 'body',       text: '강사 유니 @yuni_0010', fontSize: 12, color: null, bold: false, align: 'left' },
   ];
+  snapshot();
 }
 
 /* ---- DOM REFS ---- */
-const cardContainer  = document.getElementById('cardContainer');
-const cardImageArea  = document.getElementById('cardImageArea');
-const cardTextArea   = document.getElementById('cardTextArea');
-const blocksContainer= document.getElementById('blocksContainer');
-const cardImage      = document.getElementById('cardImage');
-const imagePlaceholder = document.getElementById('imagePlaceholder');
-const rightPanel     = document.getElementById('rightPanel');
-const blockEditorContent = document.getElementById('blockEditorContent');
+const cardContainer     = document.getElementById('cardContainer');
+const cardImageArea     = document.getElementById('cardImageArea');
+const cardTextArea      = document.getElementById('cardTextArea');
+const blocksContainer   = document.getElementById('blocksContainer');
+const cardImage         = document.getElementById('cardImage');
+const imagePlaceholder  = document.getElementById('imagePlaceholder');
+const blockEditorContent= document.getElementById('blockEditorContent');
 
 /* ============================================================
    RENDER
@@ -54,25 +87,17 @@ function render() {
 function renderCard() {
   const { cardW, cardH, bgColor, font, imagePos, imageSizePct, accentColor, isDark } = state;
 
-  // size
   cardContainer.style.width  = cardW + 'px';
   cardContainer.style.height = cardH + 'px';
-
-  // bg & font
-  cardContainer.style.setProperty('--card-bg', bgColor);
-  cardContainer.style.setProperty('--card-font', font);
   cardContainer.style.setProperty('--accent', accentColor);
   cardContainer.style.background = bgColor;
   cardContainer.style.fontFamily = font;
-
-  // dark
   cardContainer.classList.toggle('dark', isDark);
 
-  // layout
-  ['layout-left','layout-right','layout-top','layout-bottom','layout-background'].forEach(c => cardContainer.classList.remove(c));
+  ['layout-left','layout-right','layout-top','layout-bottom','layout-background']
+    .forEach(c => cardContainer.classList.remove(c));
   cardContainer.classList.add('layout-' + imagePos);
 
-  // image area sizing
   if (imagePos === 'left' || imagePos === 'right') {
     const imgW = Math.round(cardW * imageSizePct / 100);
     cardImageArea.style.width  = imgW + 'px';
@@ -89,121 +114,178 @@ function renderCard() {
     cardContainer.style.flexDirection = 'row';
   }
 
-  // text area padding — scales with card size
-  const padH = Math.max(20, Math.round(cardH * 0.06));
-  const padW = Math.max(20, Math.round(cardW * 0.045));
-  cardTextArea.style.padding = `${padH}px ${padW}px`;
-
-  // block gap — scales with card height
-  const gap = Math.max(4, Math.round(cardH * 0.013));
-  blocksContainer.style.gap = gap + 'px';
+  cardTextArea.style.padding = '28px 36px';
+  blocksContainer.style.gap = '6px';
 }
 
+/* ============================================================
+   BLOCK RENDERING
+   ============================================================ */
 function renderBlocks() {
-  // rebuild DOM
   blocksContainer.innerHTML = '';
   state.blocks.forEach(block => {
-    const el = buildBlockEl(block);
-    blocksContainer.appendChild(el);
+    blocksContainer.appendChild(buildBlockEl(block));
   });
+  setupDragDrop();
+}
+
+function getFontSize(block) {
+  if (block.fontSize) return block.fontSize + 'px';
+  const defaults = { supertitle: 13, title: 36, subtitle: 15, body: 13, info: 13 };
+  return (defaults[block.type] || 13) + 'px';
 }
 
 function buildBlockEl(block) {
   const wrap = document.createElement('div');
-  wrap.className = `block block-${block.type}`;
+  wrap.className = 'block block-' + block.type;
   wrap.dataset.id = block.id;
+  wrap.draggable = true;
   if (block.id === state.selectedBlockId) wrap.classList.add('selected');
+
+  if (block.type === 'divider') {
+    const line = document.createElement('div');
+    line.className = 'block-text';
+    line.style.height = '1px';
+    line.style.background = state.isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)';
+    line.style.margin = '4px 0';
+    wrap.appendChild(line);
+    wrap.addEventListener('click', () => selectBlock(block.id));
+    addBlockControls(wrap, block);
+    return wrap;
+  }
+
+  if (block.type === 'info') {
+    const grid = document.createElement('div');
+    grid.className = 'block-text info-grid';
+    grid.style.fontSize = getFontSize(block);
+    if (block.color) grid.style.color = block.color;
+    grid.style.textAlign = block.align || 'left';
+
+    const labelEl = document.createElement('strong');
+    labelEl.className = 'info-label';
+    labelEl.textContent = block.label || '';
+
+    const valueEl = document.createElement('span');
+    valueEl.className = 'info-value';
+    valueEl.style.whiteSpace = 'pre-wrap';
+    valueEl.textContent = block.value || '';
+
+    grid.appendChild(labelEl);
+    grid.appendChild(valueEl);
+    wrap.appendChild(grid);
+
+    labelEl.addEventListener('dblclick', e => { e.stopPropagation(); makeInlineEditable(labelEl, block, 'label'); });
+    valueEl.addEventListener('dblclick', e => { e.stopPropagation(); makeInlineEditable(valueEl, block, 'value'); });
+    wrap.addEventListener('click', () => selectBlock(block.id));
+    addBlockControls(wrap, block);
+    return wrap;
+  }
 
   const textEl = document.createElement('div');
   textEl.className = 'block-text';
-
-  // apply custom styles
-  const { cardH } = state;
-
-  if (block.type === 'title') {
-    const base = Math.max(18, Math.round(cardH * 0.075));
-    textEl.style.fontSize = block.fontSize ? block.fontSize + 'px' : base + 'px';
-  } else if (block.type === 'supertitle') {
-    const base = Math.max(10, Math.round(cardH * 0.026));
-    textEl.style.fontSize = block.fontSize ? block.fontSize + 'px' : base + 'px';
-  } else if (block.type === 'subtitle') {
-    const base = Math.max(12, Math.round(cardH * 0.032));
-    textEl.style.fontSize = block.fontSize ? block.fontSize + 'px' : base + 'px';
-  } else if (block.type === 'body' || block.type === 'info') {
-    const base = Math.max(10, Math.round(cardH * 0.027));
-    textEl.style.fontSize = block.fontSize ? block.fontSize + 'px' : base + 'px';
-  }
-
+  textEl.style.fontSize = getFontSize(block);
+  textEl.style.whiteSpace = 'pre-wrap';
   if (block.color) textEl.style.color = block.color;
   if (block.bold)  textEl.style.fontWeight = '700';
   textEl.style.textAlign = block.align || 'left';
+  textEl.textContent = block.text || '';
 
-  if (block.type === 'divider') {
-    textEl.style.height = '1px';
-    textEl.style.background = state.isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)';
-    textEl.style.margin = '6px 0';
-  } else if (block.type === 'info') {
-    // render label+value
-    const lines = block.text.split('\n');
-    lines.forEach(line => {
-      const parts = line.split('\t');
-      if (parts.length >= 2) {
-        const label = document.createElement('strong');
-        label.textContent = parts[0];
-        label.style.fontWeight = '700';
-        label.style.minWidth = '50px';
-        const val = document.createElement('span');
-        val.textContent = parts.slice(1).join(' ');
-        textEl.appendChild(label);
-        textEl.appendChild(val);
-      } else {
-        const s = document.createElement('span');
-        s.style.gridColumn = '1 / -1';
-        s.textContent = line;
-        textEl.appendChild(s);
-      }
-    });
-  } else {
-    textEl.textContent = block.text;
-  }
+  textEl.addEventListener('dblclick', e => { e.stopPropagation(); makeInlineEditable(textEl, block, 'text'); });
 
   wrap.appendChild(textEl);
-
-  // controls
-  if (block.type !== 'divider') {
-    const controls = document.createElement('div');
-    controls.className = 'block-controls';
-
-    const upBtn = document.createElement('button');
-    upBtn.className = 'block-ctrl-btn';
-    upBtn.textContent = '↑';
-    upBtn.title = '위로';
-    upBtn.addEventListener('click', e => { e.stopPropagation(); moveBlock(block.id, -1); });
-
-    const dnBtn = document.createElement('button');
-    dnBtn.className = 'block-ctrl-btn';
-    dnBtn.textContent = '↓';
-    dnBtn.title = '아래로';
-    dnBtn.addEventListener('click', e => { e.stopPropagation(); moveBlock(block.id, 1); });
-
-    const delBtn = document.createElement('button');
-    delBtn.className = 'block-ctrl-btn';
-    delBtn.textContent = '✕';
-    delBtn.title = '삭제';
-    delBtn.addEventListener('click', e => { e.stopPropagation(); deleteBlock(block.id); });
-
-    controls.appendChild(upBtn);
-    controls.appendChild(dnBtn);
-    controls.appendChild(delBtn);
-    wrap.appendChild(controls);
-  }
-
   wrap.addEventListener('click', () => selectBlock(block.id));
-
+  addBlockControls(wrap, block);
   return wrap;
 }
 
-/* ---- BLOCK EDITOR ---- */
+/* ---- INLINE EDITING ---- */
+function makeInlineEditable(el, block, field) {
+  if (el.contentEditable === 'true') return;
+  selectBlock(block.id);
+  el.contentEditable = 'true';
+  el.style.outline = 'none';
+  el.style.cursor = 'text';
+  el.focus();
+
+  const range = document.createRange();
+  range.selectNodeContents(el);
+  range.collapse(false);
+  const sel = window.getSelection();
+  sel.removeAllRanges();
+  sel.addRange(range);
+
+  function commit() {
+    el.contentEditable = 'false';
+    el.style.cursor = '';
+    block[field] = el.innerText;
+    snapshot();
+    renderBlockEditor();
+  }
+
+  el.addEventListener('blur', commit, { once: true });
+  el.addEventListener('keydown', e => { if (e.key === 'Escape') el.blur(); });
+}
+
+/* ---- BLOCK CONTROLS ---- */
+function addBlockControls(wrap, block) {
+  const controls = document.createElement('div');
+  controls.className = 'block-controls';
+  controls.appendChild(makeCtrlBtn('↑', '위로',   () => { moveBlock(block.id, -1); snapshot(); }));
+  controls.appendChild(makeCtrlBtn('↓', '아래로', () => { moveBlock(block.id,  1); snapshot(); }));
+  controls.appendChild(makeCtrlBtn('✕', '삭제',   () => { deleteBlock(block.id); snapshot(); }));
+  wrap.appendChild(controls);
+}
+
+function makeCtrlBtn(text, title, fn) {
+  const btn = document.createElement('button');
+  btn.className = 'block-ctrl-btn';
+  btn.textContent = text;
+  btn.title = title;
+  btn.addEventListener('click', e => { e.stopPropagation(); fn(); });
+  return btn;
+}
+
+/* ============================================================
+   DRAG & DROP REORDER
+   ============================================================ */
+let dragSrcId = null;
+
+function setupDragDrop() {
+  blocksContainer.querySelectorAll('.block').forEach(el => {
+    el.addEventListener('dragstart', e => {
+      dragSrcId = parseInt(el.dataset.id);
+      e.dataTransfer.effectAllowed = 'move';
+      setTimeout(() => el.classList.add('dragging'), 0);
+    });
+    el.addEventListener('dragend', () => {
+      el.classList.remove('dragging');
+      blocksContainer.querySelectorAll('.block').forEach(b => b.classList.remove('drag-over'));
+    });
+    el.addEventListener('dragover', e => {
+      e.preventDefault();
+      blocksContainer.querySelectorAll('.block').forEach(b => b.classList.remove('drag-over'));
+      el.classList.add('drag-over');
+    });
+    el.addEventListener('drop', e => {
+      e.preventDefault();
+      const targetId = parseInt(el.dataset.id);
+      if (dragSrcId === null || dragSrcId === targetId) return;
+      const srcIdx = state.blocks.findIndex(b => b.id === dragSrcId);
+      const tgtIdx = state.blocks.findIndex(b => b.id === targetId);
+      const arr = [...state.blocks];
+      const [removed] = arr.splice(srcIdx, 1);
+      arr.splice(tgtIdx, 0, removed);
+      state.blocks = arr;
+      dragSrcId = null;
+      snapshot();
+      render();
+    });
+  });
+}
+
+/* ============================================================
+   RIGHT PANEL — BLOCK EDITOR
+   ============================================================ */
 function renderBlockEditor() {
   if (!state.selectedBlockId) {
     blockEditorContent.innerHTML = '<div class="no-selection">블록을 클릭하면<br/>여기서 편집할 수 있어요</div>';
@@ -215,114 +297,140 @@ function renderBlockEditor() {
   const div = document.createElement('div');
   div.className = 'block-editor';
 
-  // Text field
-  if (block.type !== 'divider') {
-    const tf = document.createElement('div');
-    tf.className = 'editor-field';
-    tf.innerHTML = `<div class="editor-label">텍스트</div>`;
-    const ta = document.createElement('textarea');
-    ta.className = 'editor-textarea';
-    ta.value = block.text;
-    ta.rows = block.type === 'info' ? 4 : 3;
-    ta.placeholder = block.type === 'info' ? '라벨\t내용\n(탭으로 라벨과 내용 구분)' : '내용 입력...';
-    ta.addEventListener('input', () => { block.text = ta.value; renderBlocks(); });
-    tf.appendChild(ta);
-    div.appendChild(tf);
+  if (block.type === 'info') {
+    div.appendChild(makeEditorField('라벨 (굵게 표시)', () => {
+      const inp = document.createElement('input');
+      inp.className = 'editor-input';
+      inp.value = block.label || '';
+      inp.placeholder = '일시, 장소, 수강료...';
+      inp.addEventListener('input', () => { block.label = inp.value; renderBlocks(); });
+      inp.addEventListener('change', snapshot);
+      return inp;
+    }));
+    div.appendChild(makeEditorField('내용', () => {
+      const ta = document.createElement('textarea');
+      ta.className = 'editor-textarea';
+      ta.value = block.value || '';
+      ta.rows = 3;
+      ta.placeholder = '내용 입력...';
+      ta.addEventListener('input', () => { block.value = ta.value; renderBlocks(); });
+      ta.addEventListener('change', snapshot);
+      return ta;
+    }));
+  } else if (block.type !== 'divider') {
+    div.appendChild(makeEditorField('텍스트', () => {
+      const ta = document.createElement('textarea');
+      ta.className = 'editor-textarea';
+      ta.value = block.text || '';
+      ta.rows = 3;
+      ta.addEventListener('input', () => { block.text = ta.value; renderBlocks(); });
+      ta.addEventListener('change', snapshot);
+      return ta;
+    }));
   }
 
-  // Type
-  const typeField = document.createElement('div');
-  typeField.className = 'editor-field';
-  typeField.innerHTML = `<div class="editor-label">블록 타입</div>`;
-  const typeSelect = document.createElement('select');
-  typeSelect.className = 'editor-select';
-  ['supertitle','title','subtitle','body','info','divider'].forEach(t => {
-    const opt = document.createElement('option');
-    opt.value = t;
-    opt.textContent = { supertitle:'슈퍼타이틀', title:'제목', subtitle:'부제목', body:'본문', info:'정보행', divider:'구분선' }[t];
-    if (t === block.type) opt.selected = true;
-    typeSelect.appendChild(opt);
-  });
-  typeSelect.addEventListener('change', () => { block.type = typeSelect.value; render(); });
-  typeField.appendChild(typeSelect);
-  div.appendChild(typeField);
+  div.appendChild(makeEditorField('블록 타입', () => {
+    const sel = document.createElement('select');
+    sel.className = 'editor-select';
+    const types = { supertitle:'슈퍼타이틀', title:'제목', subtitle:'부제목', body:'본문', info:'정보행', divider:'구분선' };
+    Object.entries(types).forEach(([val, label]) => {
+      const opt = document.createElement('option');
+      opt.value = val; opt.textContent = label;
+      if (val === block.type) opt.selected = true;
+      sel.appendChild(opt);
+    });
+    sel.addEventListener('change', () => {
+      const prev = block.type;
+      block.type = sel.value;
+      if (block.type === 'info' && !block.label) { block.label = '항목'; block.value = block.text || ''; }
+      if (prev === 'info' && block.type !== 'info') { block.text = block.value || ''; }
+      snapshot(); render();
+    });
+    return sel;
+  }));
 
-  // Font size
-  const fsField = document.createElement('div');
-  fsField.className = 'editor-field';
-  fsField.innerHTML = `<div class="editor-label">글자 크기 (비워두면 자동)</div>`;
-  const fsInput = document.createElement('input');
-  fsInput.className = 'editor-input';
-  fsInput.type = 'number';
-  fsInput.placeholder = '자동';
-  fsInput.value = block.fontSize || '';
-  fsInput.addEventListener('input', () => {
-    block.fontSize = fsInput.value ? parseInt(fsInput.value) : null;
-    renderBlocks();
-  });
-  fsField.appendChild(fsInput);
-  div.appendChild(fsField);
+  div.appendChild(makeEditorField('글자 크기 (px)', () => {
+    const inp = document.createElement('input');
+    inp.className = 'editor-input';
+    inp.type = 'number'; inp.min = 8; inp.max = 120;
+    const defaults = { supertitle:13, title:36, subtitle:15, body:13, info:13, divider:0 };
+    inp.value = block.fontSize ?? defaults[block.type] ?? 13;
+    inp.addEventListener('input', () => { block.fontSize = parseInt(inp.value) || null; renderBlocks(); });
+    inp.addEventListener('change', snapshot);
+    return inp;
+  }));
 
-  // Align
-  const alignField = document.createElement('div');
-  alignField.className = 'editor-field';
-  alignField.innerHTML = `<div class="editor-label">정렬</div>`;
-  const alignRow = document.createElement('div');
-  alignRow.className = 'editor-row';
-  ['left','center','right'].forEach(a => {
-    const btn = document.createElement('button');
-    btn.className = 'toggle-btn' + (block.align === a ? ' on' : '');
-    btn.textContent = { left:'좌', center:'중', right:'우' }[a];
-    btn.addEventListener('click', () => { block.align = a; render(); });
-    alignRow.appendChild(btn);
-  });
-  alignField.appendChild(alignRow);
-  div.appendChild(alignField);
+  if (block.type !== 'divider') {
+    div.appendChild(makeEditorField('정렬', () => {
+      const row = document.createElement('div');
+      row.className = 'editor-row';
+      ['left','center','right'].forEach(a => {
+        const btn = document.createElement('button');
+        btn.className = 'toggle-btn' + (block.align === a ? ' on' : '');
+        btn.textContent = { left:'좌', center:'중', right:'우' }[a];
+        btn.addEventListener('click', () => {
+          block.align = a;
+          row.querySelectorAll('.toggle-btn').forEach(b => b.classList.remove('on'));
+          btn.classList.add('on');
+          renderBlocks(); snapshot();
+        });
+        row.appendChild(btn);
+      });
+      return row;
+    }));
 
-  // Color
-  const colorField = document.createElement('div');
-  colorField.className = 'editor-field';
-  colorField.innerHTML = `<div class="editor-label">색상 (비워두면 자동)</div>`;
-  const colorRow = document.createElement('div');
-  colorRow.className = 'editor-color-row';
-  const colorPicker = document.createElement('input');
-  colorPicker.type = 'color';
-  colorPicker.value = block.color || state.accentColor;
-  colorPicker.addEventListener('input', () => { block.color = colorPicker.value; renderBlocks(); });
-  const resetColorBtn = document.createElement('button');
-  resetColorBtn.className = 'toggle-btn';
-  resetColorBtn.textContent = '자동 색상';
-  resetColorBtn.addEventListener('click', () => { block.color = null; colorPicker.value = state.accentColor; renderBlocks(); });
-  colorRow.appendChild(colorPicker);
-  colorRow.appendChild(resetColorBtn);
-  colorField.appendChild(colorRow);
-  div.appendChild(colorField);
+    div.appendChild(makeEditorField('색상', () => {
+      const row = document.createElement('div');
+      row.className = 'editor-color-row';
+      const picker = document.createElement('input');
+      picker.type = 'color';
+      picker.value = block.color || state.accentColor;
+      picker.addEventListener('input', () => { block.color = picker.value; renderBlocks(); });
+      picker.addEventListener('change', snapshot);
+      const resetBtn = document.createElement('button');
+      resetBtn.className = 'toggle-btn';
+      resetBtn.textContent = '자동';
+      resetBtn.addEventListener('click', () => { block.color = null; picker.value = state.accentColor; renderBlocks(); snapshot(); });
+      row.appendChild(picker);
+      row.appendChild(resetBtn);
+      return row;
+    }));
+  }
 
-  // Bold
-  const boldRow = document.createElement('div');
-  boldRow.className = 'editor-toggle-row';
-  boldRow.innerHTML = '<span>굵게</span>';
-  const boldBtn = document.createElement('button');
-  boldBtn.className = 'toggle-btn' + (block.bold ? ' on' : '');
-  boldBtn.textContent = block.bold ? 'ON' : 'OFF';
-  boldBtn.addEventListener('click', () => {
-    block.bold = !block.bold;
-    boldBtn.classList.toggle('on', block.bold);
-    boldBtn.textContent = block.bold ? 'ON' : 'OFF';
-    renderBlocks();
-  });
-  boldRow.appendChild(boldBtn);
-  div.appendChild(boldRow);
+  if (block.type !== 'divider' && block.type !== 'info') {
+    div.appendChild(makeEditorField('굵게', () => {
+      const btn = document.createElement('button');
+      btn.className = 'toggle-btn' + (block.bold ? ' on' : '');
+      btn.textContent = block.bold ? 'ON' : 'OFF';
+      btn.addEventListener('click', () => {
+        block.bold = !block.bold;
+        btn.classList.toggle('on', block.bold);
+        btn.textContent = block.bold ? 'ON' : 'OFF';
+        renderBlocks(); snapshot();
+      });
+      return btn;
+    }));
+  }
 
-  // Delete button
   const delBtn = document.createElement('button');
   delBtn.className = 'del-block-btn';
   delBtn.textContent = '이 블록 삭제';
-  delBtn.addEventListener('click', () => deleteBlock(block.id));
+  delBtn.addEventListener('click', () => { deleteBlock(block.id); snapshot(); });
   div.appendChild(delBtn);
 
   blockEditorContent.innerHTML = '';
   blockEditorContent.appendChild(div);
+}
+
+function makeEditorField(label, buildInput) {
+  const wrap = document.createElement('div');
+  wrap.className = 'editor-field';
+  const lbl = document.createElement('div');
+  lbl.className = 'editor-label';
+  lbl.textContent = label;
+  wrap.appendChild(lbl);
+  wrap.appendChild(buildInput());
+  return wrap;
 }
 
 /* ============================================================
@@ -330,7 +438,8 @@ function renderBlockEditor() {
    ============================================================ */
 function selectBlock(id) {
   state.selectedBlockId = id;
-  render();
+  renderBlocks();
+  renderBlockEditor();
 }
 
 function deleteBlock(id) {
@@ -350,28 +459,17 @@ function moveBlock(id, dir) {
 }
 
 function addBlock(type) {
-  const defaults = {
-    supertitle: { text: '부가 설명을 입력하세요' },
-    title:      { text: '제목을 입력하세요' },
-    subtitle:   { text: '부제목을 입력하세요' },
-    body:       { text: '본문 내용을 입력하세요' },
-    info:       { text: '항목\t내용을 입력하세요' },
-    divider:    { text: '' },
-  };
   const block = {
-    id: nextId(),
-    type,
-    text: defaults[type]?.text || '',
-    fontSize: null,
-    color: null,
-    bold: false,
-    align: 'left',
+    id: nextId(), type,
+    text: type === 'title' ? '제목' : type === 'supertitle' ? '부가 설명' : type === 'subtitle' ? '부제목' : type === 'body' ? '본문 내용' : '',
+    label: type === 'info' ? '항목' : undefined,
+    value: type === 'info' ? '내용' : undefined,
+    fontSize: null, color: null, bold: false, align: 'left',
   };
   state.blocks.push(block);
   state.selectedBlockId = block.id;
+  snapshot();
   render();
-  // scroll to bottom of card text area
-  blocksContainer.lastElementChild?.scrollIntoView({ behavior: 'smooth' });
 }
 
 /* ============================================================
@@ -382,12 +480,7 @@ let resizing = null;
 document.querySelectorAll('.resize-handle').forEach(handle => {
   handle.addEventListener('mousedown', e => {
     e.preventDefault();
-    const startX = e.clientX;
-    const startY = e.clientY;
-    const startW = state.cardW;
-    const startH = state.cardH;
-    const dir = handle.dataset.dir;
-    resizing = { startX, startY, startW, startH, dir };
+    resizing = { startX: e.clientX, startY: e.clientY, startW: state.cardW, startH: state.cardH, dir: handle.dataset.dir };
   });
 });
 
@@ -397,31 +490,27 @@ document.addEventListener('mousemove', e => {
   const dy = e.clientY - resizing.startY;
   if (resizing.dir.includes('e')) state.cardW = Math.max(300, resizing.startW + dx);
   if (resizing.dir.includes('s')) state.cardH = Math.max(200, resizing.startH + dy);
-  // sync inputs
   document.getElementById('cardW').value = Math.round(state.cardW);
   document.getElementById('cardH').value = Math.round(state.cardH);
-  // deselect preset
   document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
-  render();
+  renderCard();
 });
 
-document.addEventListener('mouseup', () => { resizing = null; });
+document.addEventListener('mouseup', () => {
+  if (resizing) { resizing = null; snapshot(); }
+});
 
 /* ============================================================
-   IMAGE UPLOAD
+   IMAGE
    ============================================================ */
 document.getElementById('imageUpload').addEventListener('change', e => {
   const file = e.target.files[0];
   if (!file) return;
-  const url = URL.createObjectURL(file);
-  cardImage.src = url;
+  cardImage.src = URL.createObjectURL(file);
   cardImage.style.display = 'block';
   imagePlaceholder.style.display = 'none';
 });
 
-/* ============================================================
-   IMAGE POSITION
-   ============================================================ */
 document.getElementById('imagePositionGrid').querySelectorAll('.pos-btn').forEach(btn => {
   btn.addEventListener('click', () => {
     document.querySelectorAll('.pos-btn').forEach(b => b.classList.remove('active'));
@@ -434,7 +523,7 @@ document.getElementById('imagePositionGrid').querySelectorAll('.pos-btn').forEac
 document.getElementById('imageSizeSlider').addEventListener('input', e => {
   state.imageSizePct = parseInt(e.target.value);
   document.getElementById('imageSizeVal').textContent = state.imageSizePct + '%';
-  render();
+  renderCard();
 });
 
 /* ============================================================
@@ -452,114 +541,74 @@ document.querySelectorAll('.preset-btn').forEach(btn => {
   });
 });
 
-document.getElementById('cardW').addEventListener('change', e => {
-  state.cardW = Math.max(300, parseInt(e.target.value) || 300);
-  render();
-});
-document.getElementById('cardH').addEventListener('change', e => {
-  state.cardH = Math.max(200, parseInt(e.target.value) || 200);
-  render();
-});
+document.getElementById('cardW').addEventListener('change', e => { state.cardW = Math.max(300, parseInt(e.target.value)||300); render(); });
+document.getElementById('cardH').addEventListener('change', e => { state.cardH = Math.max(200, parseInt(e.target.value)||200); render(); });
 
 /* ============================================================
-   FONT
+   FONT & COLORS
    ============================================================ */
-document.getElementById('fontSelect').addEventListener('change', e => {
-  state.font = e.target.value;
-  render();
-});
+document.getElementById('fontSelect').addEventListener('change', e => { state.font = e.target.value; render(); });
 
-/* ============================================================
-   COLORS
-   ============================================================ */
-// BG color swatches
 document.querySelectorAll('.color-swatches').forEach(group => {
-  // only handle swatch buttons (not custom pickers)
   group.querySelectorAll('button.swatch').forEach(btn => {
     btn.addEventListener('click', () => {
-      // determine which group
       const isBg = group.previousElementSibling?.textContent.includes('배경');
-      if (isBg) {
-        group.querySelectorAll('button.swatch').forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        state.bgColor = btn.dataset.color;
-        // detect dark
-        state.isDark = isDarkColor(state.bgColor);
-      } else {
-        group.querySelectorAll('button.swatch').forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        state.accentColor = btn.dataset.color;
-      }
+      group.querySelectorAll('button.swatch').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      if (isBg) { state.bgColor = btn.dataset.color; state.isDark = isDarkColor(state.bgColor); }
+      else state.accentColor = btn.dataset.color;
       render();
     });
   });
 });
 
 document.getElementById('bgColorPicker').addEventListener('input', e => {
-  state.bgColor = e.target.value;
-  state.isDark = isDarkColor(state.bgColor);
-  render();
+  state.bgColor = e.target.value; state.isDark = isDarkColor(state.bgColor); render();
 });
 document.getElementById('accentColorPicker').addEventListener('input', e => {
-  state.accentColor = e.target.value;
-  render();
+  state.accentColor = e.target.value; render();
 });
 
 function isDarkColor(hex) {
-  const r = parseInt(hex.slice(1,3),16);
-  const g = parseInt(hex.slice(3,5),16);
-  const b = parseInt(hex.slice(5,7),16);
-  return (r * 0.299 + g * 0.587 + b * 0.114) < 128;
+  const r=parseInt(hex.slice(1,3),16), g=parseInt(hex.slice(3,5),16), b=parseInt(hex.slice(5,7),16);
+  return (r*0.299+g*0.587+b*0.114)<128;
 }
 
 /* ============================================================
-   ADD BLOCK BUTTONS
+   ADD BLOCK & EXPORT
    ============================================================ */
 document.querySelectorAll('.add-block-btn').forEach(btn => {
   btn.addEventListener('click', () => addBlock(btn.dataset.type));
 });
 
-/* ============================================================
-   EXPORT
-   ============================================================ */
 document.getElementById('exportBtn').addEventListener('click', async () => {
-  // deselect
-  const prevSelected = state.selectedBlockId;
+  const prevSel = state.selectedBlockId;
   state.selectedBlockId = null;
   renderBlocks();
-
-  // hide resize handles
-  document.querySelectorAll('.resize-handle').forEach(h => h.style.display = 'none');
-  document.querySelectorAll('.block-controls').forEach(h => h.style.display = 'none');
-
+  document.querySelectorAll('.resize-handle').forEach(h => h.style.display='none');
   try {
     const canvas = await html2canvas(cardContainer, {
-      scale: 2,
-      useCORS: true,
+      scale: 2, useCORS: true,
       backgroundColor: state.bgColor,
-      width: state.cardW,
-      height: state.cardH,
+      width: state.cardW, height: state.cardH,
     });
     const link = document.createElement('a');
     link.download = 'card.png';
     link.href = canvas.toDataURL('image/png');
     link.click();
-  } catch(err) {
-    alert('저장 중 오류가 발생했습니다: ' + err.message);
-  } finally {
-    document.querySelectorAll('.resize-handle').forEach(h => h.style.display = '');
-    state.selectedBlockId = prevSelected;
+  } catch(err) { alert('저장 오류: ' + err.message); }
+  finally {
+    document.querySelectorAll('.resize-handle').forEach(h => h.style.display='');
+    state.selectedBlockId = prevSel;
     render();
   }
 });
 
-/* ============================================================
-   CLICK OUTSIDE TO DESELECT
-   ============================================================ */
 cardContainer.addEventListener('click', e => {
   if (e.target === cardContainer || e.target === cardTextArea || e.target === blocksContainer) {
     state.selectedBlockId = null;
-    render();
+    renderBlockEditor();
+    renderBlocks();
   }
 });
 

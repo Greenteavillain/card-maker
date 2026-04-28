@@ -167,14 +167,22 @@ function renderCard() {
     .forEach(c => cardContainer.classList.remove(c));
   cardContainer.classList.add('layout-' + imagePos);
 
+  const imgRatio = state.imageNaturalRatio || 1; // w/h
+
   if (imagePos === 'left' || imagePos === 'right') {
-    const imgW = Math.round(cardW * imageSizePct / 100);
+    // 이미지 높이 = 카드 높이, 너비 = 원본 비율 × 높이 × 슬라이더 배율
+    const scale = imageSizePct / 50; // 슬라이더 50% = 1배
+    const imgH = cardH;
+    const imgW = Math.min(Math.round(imgH * imgRatio * scale), Math.round(cardW * 0.75));
     cardImageArea.style.width  = imgW + 'px';
-    cardImageArea.style.height = '100%';
+    cardImageArea.style.height = cardH + 'px';
     cardContainer.style.flexDirection = imagePos === 'right' ? 'row-reverse' : 'row';
   } else if (imagePos === 'top' || imagePos === 'bottom') {
-    const imgH = Math.round(cardH * imageSizePct / 100);
-    cardImageArea.style.width  = '100%';
+    // 이미지 너비 = 카드 너비, 높이 = 원본 비율 × 너비 × 슬라이더 배율
+    const scale = imageSizePct / 50;
+    const imgW = cardW;
+    const imgH = Math.min(Math.round(imgW / imgRatio * scale), Math.round(cardH * 0.75));
+    cardImageArea.style.width  = cardW + 'px';
     cardImageArea.style.height = imgH + 'px';
     cardContainer.style.flexDirection = imagePos === 'bottom' ? 'column-reverse' : 'column';
   } else if (imagePos === 'background') {
@@ -617,7 +625,15 @@ document.getElementById('imageUpload').addEventListener('change', e => {
     cardImage.src = state.imageDataUrl;
     cardImage.style.display = 'block';
     imagePlaceholder.style.display = 'none';
-    scheduleSave();
+    // 원본 비율 저장
+    const img = new Image();
+    img.onload = () => {
+      state.imageNaturalRatio = img.naturalWidth / img.naturalHeight;
+      scheduleSave();
+      renderCard();
+      requestAnimationFrame(positionHandles);
+    };
+    img.src = state.imageDataUrl;
   };
   reader.readAsDataURL(file);
 });
@@ -796,8 +812,8 @@ cardContainer.addEventListener('click', e => {
    VERSION HISTORY
    ============================================================ */
 const VERSIONS = [
-  { tag: 'v1.7',   log: 'canvas-inner position:relative 추가\n리사이즈 핸들 좌표 수정\n이미지 잘림 완전 수정' },
-  { tag: 'v1.6',   log: '카드 중앙 정렬 수정\n스크롤 지원' },
+  { tag: 'v1.8',   log: '이미지 비율 로직 완전 재설계\n높이=카드높이, 너비=원본비율 자동계산\n슬라이더로 크기 배율 조절' },
+  { tag: 'v1.7',   log: 'canvas-inner position 수정\n리사이즈 핸들 좌표 수정' },
   { tag: 'v1.5',   log: '버전 기록 패널 추가' },
   { tag: 'v1.4.2', log: '카드 크기 조절 시 왼쪽 잘림 수정 시도' },
   { tag: 'v1.4.1', log: '이미지 object-fit cover 적용' },
@@ -837,6 +853,16 @@ if (!loaded) {
 } else {
   if (state.blocks.length > 0) {
     blockIdCounter = Math.max(...state.blocks.map(b => b.id));
+  }
+  // 저장된 이미지에서 비율 복원
+  if (state.imageDataUrl) {
+    const img = new Image();
+    img.onload = () => {
+      state.imageNaturalRatio = img.naturalWidth / img.naturalHeight;
+      renderCard();
+      requestAnimationFrame(positionHandles);
+    };
+    img.src = state.imageDataUrl;
   }
   snapshot();
 }

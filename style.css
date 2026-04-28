@@ -246,20 +246,44 @@ body {
 .panel-bottom {
   padding: 14px;
   margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.export-btns {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 6px;
 }
 .export-btn {
-  width: 100%;
-  padding: 11px;
+  padding: 11px 6px;
   background: var(--accent);
   border: none;
   border-radius: 8px;
   color: white;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 700;
   cursor: pointer;
   transition: opacity 0.15s;
 }
 .export-btn:hover { opacity: 0.85; }
+.export-btn-sec {
+  background: rgba(255,255,255,0.1);
+  border: 1px solid rgba(255,255,255,0.15);
+}
+.export-btn-sec:hover { background: rgba(255,255,255,0.18); opacity: 1; }
+.clear-btn {
+  width: 100%;
+  padding: 7px;
+  background: transparent;
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 6px;
+  color: var(--panel-muted);
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.clear-btn:hover { border-color: #e53935; color: #ef9a9a; }
 
 /* ---- CANVAS AREA ---- */
 .canvas-area {

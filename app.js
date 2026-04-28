@@ -1,6 +1,8 @@
 /* =============================================
-   CARD MAKER — APP LOGIC v2
+   CARD MAKER — APP LOGIC v3
    ============================================= */
+
+const STORAGE_KEY = 'cardmaker_v1';
 
 const state = {
   imagePos: 'left',
@@ -13,7 +15,56 @@ const state = {
   selectedBlockId: null,
   blocks: [],
   isDark: false,
+  imageDataUrl: null, // base64 for localStorage
 };
+
+/* ============================================================
+   LOCAL STORAGE — 자동 저장/불러오기
+   ============================================================ */
+function saveToStorage() {
+  try {
+    const data = {
+      imagePos: state.imagePos,
+      imageSizePct: state.imageSizePct,
+      cardW: state.cardW,
+      cardH: state.cardH,
+      bgColor: state.bgColor,
+      accentColor: state.accentColor,
+      font: state.font,
+      isDark: state.isDark,
+      blocks: state.blocks,
+      imageDataUrl: state.imageDataUrl,
+    };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  } catch(e) {
+    // localStorage full (이미지 too large) — save without image
+    try {
+      const data = { ...arguments[0], imageDataUrl: null };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    } catch(e2) { /* silent */ }
+  }
+}
+
+function loadFromStorage() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return false;
+    const data = JSON.parse(raw);
+    Object.assign(state, data);
+    return true;
+  } catch(e) { return false; }
+}
+
+function clearStorage() {
+  localStorage.removeItem(STORAGE_KEY);
+}
+
+// 자동 저장: state 변경 후 debounce
+let saveTimer = null;
+function scheduleSave() {
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(saveToStorage, 600);
+}
 
 /* ============================================================
    UNDO HISTORY
@@ -29,6 +80,7 @@ function snapshot() {
   history.push(snap);
   if (history.length > 60) history.shift();
   historyIndex = history.length - 1;
+  scheduleSave();
 }
 
 function undo() {
@@ -40,6 +92,7 @@ function undo() {
   state.selectedBlockId = snap.selectedBlockId;
   suppressHistory = false;
   render();
+  scheduleSave();
 }
 
 document.addEventListener('keydown', e => {
@@ -49,6 +102,7 @@ document.addEventListener('keydown', e => {
   }
 });
 
+/* ---- ID ---- */
 let blockIdCounter = 0;
 function nextId() { return ++blockIdCounter; }
 
@@ -82,6 +136,20 @@ function render() {
   renderCard();
   renderBlocks();
   renderBlockEditor();
+  syncPanelUI();
+}
+
+function syncPanelUI() {
+  // sync font select
+  document.getElementById('fontSelect').value = state.font;
+  // sync image size slider
+  document.getElementById('imageSizeSlider').value = state.imageSizePct;
+  document.getElementById('imageSizeVal').textContent = state.imageSizePct + '%';
+  // sync card size inputs
+  document.getElementById('cardW').value = Math.round(state.cardW);
+  document.getElementById('cardH').value = Math.round(state.cardH);
+  // sync image pos buttons
+  document.querySelectorAll('.pos-btn').forEach(b => b.classList.toggle('active', b.dataset.pos === state.imagePos));
 }
 
 function renderCard() {
@@ -116,6 +184,13 @@ function renderCard() {
 
   cardTextArea.style.padding = '28px 36px';
   blocksContainer.style.gap = '6px';
+
+  // restore image if stored
+  if (state.imageDataUrl) {
+    cardImage.src = state.imageDataUrl;
+    cardImage.style.display = 'block';
+    imagePlaceholder.style.display = 'none';
+  }
 }
 
 /* ============================================================
@@ -206,7 +281,6 @@ function makeInlineEditable(el, block, field) {
   el.style.outline = 'none';
   el.style.cursor = 'text';
   el.focus();
-
   const range = document.createRange();
   range.selectNodeContents(el);
   range.collapse(false);
@@ -221,7 +295,6 @@ function makeInlineEditable(el, block, field) {
     snapshot();
     renderBlockEditor();
   }
-
   el.addEventListener('blur', commit, { once: true });
   el.addEventListener('keydown', e => { if (e.key === 'Escape') el.blur(); });
 }
@@ -303,7 +376,7 @@ function renderBlockEditor() {
       inp.className = 'editor-input';
       inp.value = block.label || '';
       inp.placeholder = '일시, 장소, 수강료...';
-      inp.addEventListener('input', () => { block.label = inp.value; renderBlocks(); });
+      inp.addEventListener('input', () => { block.label = inp.value; renderBlocks(); scheduleSave(); });
       inp.addEventListener('change', snapshot);
       return inp;
     }));
@@ -313,7 +386,7 @@ function renderBlockEditor() {
       ta.value = block.value || '';
       ta.rows = 3;
       ta.placeholder = '내용 입력...';
-      ta.addEventListener('input', () => { block.value = ta.value; renderBlocks(); });
+      ta.addEventListener('input', () => { block.value = ta.value; renderBlocks(); scheduleSave(); });
       ta.addEventListener('change', snapshot);
       return ta;
     }));
@@ -323,7 +396,7 @@ function renderBlockEditor() {
       ta.className = 'editor-textarea';
       ta.value = block.text || '';
       ta.rows = 3;
-      ta.addEventListener('input', () => { block.text = ta.value; renderBlocks(); });
+      ta.addEventListener('input', () => { block.text = ta.value; renderBlocks(); scheduleSave(); });
       ta.addEventListener('change', snapshot);
       return ta;
     }));
@@ -355,7 +428,7 @@ function renderBlockEditor() {
     inp.type = 'number'; inp.min = 8; inp.max = 120;
     const defaults = { supertitle:13, title:36, subtitle:15, body:13, info:13, divider:0 };
     inp.value = block.fontSize ?? defaults[block.type] ?? 13;
-    inp.addEventListener('input', () => { block.fontSize = parseInt(inp.value) || null; renderBlocks(); });
+    inp.addEventListener('input', () => { block.fontSize = parseInt(inp.value) || null; renderBlocks(); scheduleSave(); });
     inp.addEventListener('change', snapshot);
     return inp;
   }));
@@ -385,7 +458,7 @@ function renderBlockEditor() {
       const picker = document.createElement('input');
       picker.type = 'color';
       picker.value = block.color || state.accentColor;
-      picker.addEventListener('input', () => { block.color = picker.value; renderBlocks(); });
+      picker.addEventListener('input', () => { block.color = picker.value; renderBlocks(); scheduleSave(); });
       picker.addEventListener('change', snapshot);
       const resetBtn = document.createElement('button');
       resetBtn.className = 'toggle-btn';
@@ -501,21 +574,31 @@ document.addEventListener('mouseup', () => {
 });
 
 /* ============================================================
-   IMAGE
+   IMAGE UPLOAD — base64로 저장
    ============================================================ */
 document.getElementById('imageUpload').addEventListener('change', e => {
   const file = e.target.files[0];
   if (!file) return;
-  cardImage.src = URL.createObjectURL(file);
-  cardImage.style.display = 'block';
-  imagePlaceholder.style.display = 'none';
+  const reader = new FileReader();
+  reader.onload = ev => {
+    state.imageDataUrl = ev.target.result;
+    cardImage.src = state.imageDataUrl;
+    cardImage.style.display = 'block';
+    imagePlaceholder.style.display = 'none';
+    scheduleSave();
+  };
+  reader.readAsDataURL(file);
 });
 
+/* ============================================================
+   IMAGE POSITION
+   ============================================================ */
 document.getElementById('imagePositionGrid').querySelectorAll('.pos-btn').forEach(btn => {
   btn.addEventListener('click', () => {
     document.querySelectorAll('.pos-btn').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
     state.imagePos = btn.dataset.pos;
+    scheduleSave();
     render();
   });
 });
@@ -523,6 +606,7 @@ document.getElementById('imagePositionGrid').querySelectorAll('.pos-btn').forEac
 document.getElementById('imageSizeSlider').addEventListener('input', e => {
   state.imageSizePct = parseInt(e.target.value);
   document.getElementById('imageSizeVal').textContent = state.imageSizePct + '%';
+  scheduleSave();
   renderCard();
 });
 
@@ -537,17 +621,27 @@ document.querySelectorAll('.preset-btn').forEach(btn => {
     state.cardH = parseInt(btn.dataset.h);
     document.getElementById('cardW').value = state.cardW;
     document.getElementById('cardH').value = state.cardH;
+    scheduleSave();
     render();
   });
 });
 
-document.getElementById('cardW').addEventListener('change', e => { state.cardW = Math.max(300, parseInt(e.target.value)||300); render(); });
-document.getElementById('cardH').addEventListener('change', e => { state.cardH = Math.max(200, parseInt(e.target.value)||200); render(); });
+document.getElementById('cardW').addEventListener('change', e => {
+  state.cardW = Math.max(300, parseInt(e.target.value)||300);
+  scheduleSave(); render();
+});
+document.getElementById('cardH').addEventListener('change', e => {
+  state.cardH = Math.max(200, parseInt(e.target.value)||200);
+  scheduleSave(); render();
+});
 
 /* ============================================================
    FONT & COLORS
    ============================================================ */
-document.getElementById('fontSelect').addEventListener('change', e => { state.font = e.target.value; render(); });
+document.getElementById('fontSelect').addEventListener('change', e => {
+  state.font = e.target.value;
+  scheduleSave(); render();
+});
 
 document.querySelectorAll('.color-swatches').forEach(group => {
   group.querySelectorAll('button.swatch').forEach(btn => {
@@ -557,16 +651,18 @@ document.querySelectorAll('.color-swatches').forEach(group => {
       btn.classList.add('active');
       if (isBg) { state.bgColor = btn.dataset.color; state.isDark = isDarkColor(state.bgColor); }
       else state.accentColor = btn.dataset.color;
-      render();
+      scheduleSave(); render();
     });
   });
 });
 
 document.getElementById('bgColorPicker').addEventListener('input', e => {
-  state.bgColor = e.target.value; state.isDark = isDarkColor(state.bgColor); render();
+  state.bgColor = e.target.value; state.isDark = isDarkColor(state.bgColor);
+  scheduleSave(); render();
 });
 document.getElementById('accentColorPicker').addEventListener('input', e => {
-  state.accentColor = e.target.value; render();
+  state.accentColor = e.target.value;
+  scheduleSave(); render();
 });
 
 function isDarkColor(hex) {
@@ -575,35 +671,87 @@ function isDarkColor(hex) {
 }
 
 /* ============================================================
-   ADD BLOCK & EXPORT
+   ADD BLOCK
    ============================================================ */
 document.querySelectorAll('.add-block-btn').forEach(btn => {
   btn.addEventListener('click', () => addBlock(btn.dataset.type));
 });
 
-document.getElementById('exportBtn').addEventListener('click', async () => {
+/* ============================================================
+   EXPORT — PNG / JPG / PDF
+   ============================================================ */
+async function captureCanvas() {
   const prevSel = state.selectedBlockId;
   state.selectedBlockId = null;
   renderBlocks();
   document.querySelectorAll('.resize-handle').forEach(h => h.style.display='none');
+  document.querySelectorAll('.block-controls').forEach(h => h.style.display='none');
+
+  let canvas;
   try {
-    const canvas = await html2canvas(cardContainer, {
+    canvas = await html2canvas(cardContainer, {
       scale: 2, useCORS: true,
       backgroundColor: state.bgColor,
       width: state.cardW, height: state.cardH,
     });
-    const link = document.createElement('a');
-    link.download = 'card.png';
-    link.href = canvas.toDataURL('image/png');
-    link.click();
-  } catch(err) { alert('저장 오류: ' + err.message); }
-  finally {
+  } finally {
     document.querySelectorAll('.resize-handle').forEach(h => h.style.display='');
     state.selectedBlockId = prevSel;
     render();
   }
+  return canvas;
+}
+
+document.getElementById('exportPng').addEventListener('click', async () => {
+  const canvas = await captureCanvas();
+  const link = document.createElement('a');
+  link.download = 'card.png';
+  link.href = canvas.toDataURL('image/png');
+  link.click();
 });
 
+document.getElementById('exportJpg').addEventListener('click', async () => {
+  const canvas = await captureCanvas();
+  const link = document.createElement('a');
+  link.download = 'card.jpg';
+  link.href = canvas.toDataURL('image/jpeg', 0.92);
+  link.click();
+});
+
+document.getElementById('exportPdf').addEventListener('click', async () => {
+  const canvas = await captureCanvas();
+  const { jsPDF } = window.jspdf;
+  const imgData = canvas.toDataURL('image/jpeg', 0.95);
+  // card dimensions in mm (1px = 0.2646mm at 96dpi)
+  const mmW = state.cardW * 0.2646;
+  const mmH = state.cardH * 0.2646;
+  const pdf = new jsPDF({
+    orientation: mmW > mmH ? 'landscape' : 'portrait',
+    unit: 'mm',
+    format: [mmW, mmH],
+  });
+  pdf.addImage(imgData, 'JPEG', 0, 0, mmW, mmH);
+  pdf.save('card.pdf');
+});
+
+/* ============================================================
+   CLEAR / RESET
+   ============================================================ */
+document.getElementById('clearBtn').addEventListener('click', () => {
+  if (!confirm('모든 내용을 초기화할까요?')) return;
+  clearStorage();
+  state.imageDataUrl = null;
+  cardImage.src = '';
+  cardImage.style.display = 'none';
+  imagePlaceholder.style.display = 'flex';
+  blockIdCounter = 0;
+  initDefaultBlocks();
+  render();
+});
+
+/* ============================================================
+   CLICK OUTSIDE TO DESELECT
+   ============================================================ */
 cardContainer.addEventListener('click', e => {
   if (e.target === cardContainer || e.target === cardTextArea || e.target === blocksContainer) {
     state.selectedBlockId = null;
@@ -613,7 +761,16 @@ cardContainer.addEventListener('click', e => {
 });
 
 /* ============================================================
-   INIT
+   INIT — localStorage 불러오기 or 기본값
    ============================================================ */
-initDefaultBlocks();
+const loaded = loadFromStorage();
+if (!loaded) {
+  initDefaultBlocks();
+} else {
+  // blockIdCounter를 저장된 블록 중 최대 id로 맞추기
+  if (state.blocks.length > 0) {
+    blockIdCounter = Math.max(...state.blocks.map(b => b.id));
+  }
+  snapshot();
+}
 render();

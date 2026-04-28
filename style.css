@@ -707,6 +707,27 @@ body {
 }
 .del-block-btn:hover { background: rgba(229,57,53,0.25); }
 
+/* ---- FONT PICKER ---- */
+.font-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.font-pick-btn {
+  padding: 7px 10px;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 6px;
+  color: var(--panel-text);
+  font-size: 14px;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.15s;
+  line-height: 1.4;
+}
+.font-pick-btn:hover { background: rgba(255,255,255,0.1); }
+.font-pick-btn.on { background: var(--accent); border-color: var(--accent); color: white; }
+
 /* ---- INFO GRID ---- */
 .info-grid {
   display: grid;

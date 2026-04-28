@@ -4,6 +4,20 @@
 
 const STORAGE_KEY = 'cardmaker_v2';
 
+/* ---- 공통 폰트 목록 ---- */
+const FONTS = [
+  { label: '노토 산스',     value: "'Noto Sans KR', sans-serif" },
+  { label: '노토 세리프',   value: "'Noto Serif KR', serif" },
+  { label: '블랙 한 산스',  value: "'Black Han Sans', sans-serif" },
+  { label: '고운 돋움',     value: "'Gowun Dodum', sans-serif" },
+  { label: '개구',          value: "'Gaegu', cursive" },
+  { label: '주아',          value: "'Jua', sans-serif" },
+  { label: '도현',          value: "'Do Hyeon', sans-serif" },
+  { label: '나눔명조',      value: "'Nanum Myeongjo', serif" },
+  { label: '나눔고딕',      value: "'Nanum Gothic', sans-serif" },
+  { label: '나눔펜',        value: "'Nanum Pen Script', cursive" },
+];
+
 const state = {
   imagePos: 'left',
   imageSizePct: 45,
@@ -243,6 +257,7 @@ function buildBlockEl(block) {
     grid.className = 'block-text info-grid';
     grid.style.fontSize = getFontSize(block);
     if (block.color) grid.style.color = block.color;
+    if (block.font) grid.style.fontFamily = block.font;
     grid.style.textAlign = block.align || 'left';
 
     const labelEl = document.createElement('strong');
@@ -271,6 +286,7 @@ function buildBlockEl(block) {
   textEl.style.whiteSpace = 'pre-wrap';
   if (block.color) textEl.style.color = block.color;
   if (block.bold)  textEl.style.fontWeight = '700';
+  if (block.font)  textEl.style.fontFamily = block.font;
   textEl.style.textAlign = block.align || 'left';
   textEl.textContent = block.text || '';
 
@@ -441,6 +457,41 @@ function renderBlockEditor() {
     inp.addEventListener('change', snapshot);
     return inp;
   }));
+
+  // 폰트 선택 (미리보기)
+  if (block.type !== 'divider') {
+    div.appendChild(makeEditorField('폰트', () => {
+      const wrap = document.createElement('div');
+      wrap.className = 'font-picker';
+
+      FONTS.forEach(f => {
+        const btn = document.createElement('button');
+        btn.className = 'font-pick-btn' + (block.font === f.value ? ' on' : '');
+        btn.style.fontFamily = f.value;
+        btn.textContent = f.label;
+        btn.title = f.label;
+        btn.addEventListener('click', () => {
+          block.font = block.font === f.value ? null : f.value;
+          renderBlocks(); snapshot();
+          // re-render editor to update active state
+          renderBlockEditor();
+        });
+        wrap.appendChild(btn);
+      });
+
+      const resetBtn = document.createElement('button');
+      resetBtn.className = 'font-pick-btn' + (!block.font ? ' on' : '');
+      resetBtn.textContent = '기본';
+      resetBtn.addEventListener('click', () => {
+        block.font = null;
+        renderBlocks(); snapshot();
+        renderBlockEditor();
+      });
+      wrap.insertBefore(resetBtn, wrap.firstChild);
+
+      return wrap;
+    }));
+  }
 
   if (block.type !== 'divider') {
     div.appendChild(makeEditorField('정렬', () => {
@@ -808,11 +859,22 @@ cardContainer.addEventListener('click', e => {
   }
 });
 
-/* ============================================================
-   VERSION HISTORY
-   ============================================================ */
+function initFontSelect() {
+  const sel = document.getElementById('fontSelect');
+  FONTS.forEach(f => {
+    const opt = document.createElement('option');
+    opt.value = f.value;
+    opt.textContent = f.label;
+    opt.style.fontFamily = f.value;
+    sel.appendChild(opt);
+  });
+  sel.value = state.font;
+}
+
+
 const VERSIONS = [
-  { tag: 'v1.9',   log: '저장 키 초기화 (예시 글 복원)\n상단/하단 이미지 비율 확인' },
+  { tag: 'v2.0',   log: '블록별 폰트 선택\n폰트 미리보기 UI\n나눔체/도현 추가' },
+  { tag: 'v1.9',   log: '저장 키 초기화 (예시 글 복원)\n상단/하단 이미지 비율 수정' },
   { tag: 'v1.8',   log: '이미지 비율 로직 완전 재설계\n높이=카드높이, 너비=원본비율 자동계산' },
   { tag: 'v1.5',   log: '버전 기록 패널 추가' },
   { tag: 'v1.4.2', log: '카드 크기 조절 시 왼쪽 잘림 수정 시도' },
@@ -867,4 +929,5 @@ if (!loaded) {
   snapshot();
 }
 render();
+initFontSelect();
 initVersionPanel();

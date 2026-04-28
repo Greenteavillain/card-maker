@@ -6,7 +6,7 @@
   <title>카드 메이커</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&family=Noto+Serif+KR:wght@400;600;700;900&family=Black+Han+Sans&family=Gowun+Dodum&family=Gaegu:wght@400;700&family=Jua&family=Do+Hyeon&family=Nanum+Myeongjo:wght@400;700&family=Nanum+Gothic:wght@400;700&family=Nanum+Pen+Script&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&family=Noto+Serif+KR:wght@400;600;700;900&family=Black+Han+Sans&family=Gowun+Dodum&family=Gowun+Batang:wght@400;700&family=Gaegu:wght@400;700&family=Jua&family=Do+Hyeon&family=Nanum+Myeongjo:wght@400;700&family=Nanum+Gothic:wght@400;700&family=Nanum+Pen+Script&family=Nanum+Brush+Script&family=Poor+Story&family=Hi+Melody&family=Gamja+Flower&family=Hahmlet:wght@400;700&family=Song+Myung&family=Sunflower:wght@300;500;700&family=Single+Day&family=Kirang+Haerang&family=Gugi&family=Stylish&family=Cute+Font&family=East+Sea+Dokdo&family=Dokdo&family=IBM+Plex+Sans+KR:wght@400;700&family=Orbit&family=Jeju+Gothic&family=Jeju+Myeongjo&family=Jeju+Hallasan&family=Dongle:wght@300;400;700&family=Grandiflora+One&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
@@ -31,30 +31,24 @@
           <button class="pos-btn" data-pos="bottom" title="하단">⬓</button>
           <button class="pos-btn" data-pos="background" title="배경">⬜</button>
         </div>
-        <label class="slider-row">
-          <span>이미지 비율</span>
-          <input type="range" id="imageSizeSlider" min="20" max="70" value="45" />
-          <span id="imageSizeVal">45%</span>
-        </label>
-      </div>
-
-      <div class="panel-section">
-        <div class="section-label">카드 크기</div>
-        <div class="size-presets">
-          <button class="preset-btn active" data-w="900" data-h="500">가로형</button>
-          <button class="preset-btn" data-w="600" data-h="800">세로형</button>
-          <button class="preset-btn" data-w="700" data-h="700">정사각</button>
-          <button class="preset-btn" data-w="1080" data-h="566">유튜브</button>
-        </div>
-        <div class="size-inputs">
-          <label>W <input type="number" id="cardW" value="900" min="300" max="2000" /></label>
-          <span>×</span>
-          <label>H <input type="number" id="cardH" value="500" min="200" max="2000" /></label>
+        <div class="section-label" style="margin-top:10px">이미지 여백 (px)</div>
+        <div class="image-padding-grid">
+          <div></div>
+          <label class="img-pad-label">상<input type="number" id="imgPadTop" value="0" min="0" max="200" /></label>
+          <div></div>
+          <label class="img-pad-label">좌<input type="number" id="imgPadLeft" value="0" min="0" max="200" /></label>
+          <div></div>
+          <label class="img-pad-label">우<input type="number" id="imgPadRight" value="0" min="0" max="200" /></label>
+          <div></div>
+          <label class="img-pad-label">하<input type="number" id="imgPadBottom" value="0" min="0" max="200" /></label>
+          <div></div>
         </div>
       </div>
 
+      
+
       <div class="panel-section">
-        <div class="section-label">기본 폰트</div>
+        <div class="section-label">폰트 전체 바꾸기</div>
         <select id="fontSelect" class="font-select">
         </select>
       </div>
@@ -64,19 +58,21 @@
         <div class="color-swatches">
           <button class="swatch active" data-color="#ffffff" style="background:#ffffff;border:2px solid #ddd"></button>
           <button class="swatch" data-color="#fdf6f0" style="background:#fdf6f0"></button>
-          <button class="swatch" data-color="#f0f4fd" style="background:#f0f4fd"></button>
-          <button class="swatch" data-color="#f0fdf4" style="background:#f0fdf4"></button>
-          <button class="swatch" data-color="#fdf0f0" style="background:#fdf0f0"></button>
-          <button class="swatch" data-color="#1a1a2e" style="background:#1a1a2e"></button>
           <button class="swatch" data-color="#0d1b2a" style="background:#0d1b2a"></button>
           <label class="swatch custom-color-btn" title="직접 선택">
             <input type="color" id="bgColorPicker" value="#ffffff" />
             <span>🎨</span>
           </label>
         </div>
+        <input type="text" id="bgHexInput" class="hex-input" maxlength="7" placeholder="#ffffff" />
       </div>
 
       <div class="panel-section">
+        <div class="section-label">카드 사용 색상</div>
+        <div class="card-colors-swatches" id="cardColorsSwatches"></div>
+      </div>
+
+      <div class="panel-section" style="display:none">
         <div class="section-label">강조 색상</div>
         <div class="color-swatches">
           <button class="swatch active" data-color="#ff6b9d" style="background:#ff6b9d"></button>
@@ -93,22 +89,16 @@
         </div>
       </div>
 
-      <div class="panel-section">
-        <div class="section-label">블록 추가</div>
-        <div class="add-block-btns">
-          <button class="add-block-btn" data-type="title">＋ 제목</button>
-          <button class="add-block-btn" data-type="subtitle">＋ 부제목</button>
-          <button class="add-block-btn" data-type="body">＋ 본문</button>
-          <button class="add-block-btn" data-type="info">＋ 정보 행</button>
-          <button class="add-block-btn" data-type="divider">＋ 구분선</button>
-        </div>
-      </div>
 
       <div class="panel-bottom">
+        <div class="export-scale-btns">
+          <button class="scale-btn" data-scale="1">1x</button>
+          <button class="scale-btn" data-scale="2">2x</button>
+          <button class="scale-btn active" data-scale="4">4x</button>
+        </div>
         <div class="export-btns">
           <button class="export-btn" id="exportPng">PNG</button>
           <button class="export-btn export-btn-sec" id="exportJpg">JPG</button>
-          <button class="export-btn export-btn-sec" id="exportPdf">PDF</button>
         </div>
         <button class="clear-btn" id="clearBtn">초기화</button>
       </div>
@@ -143,7 +133,13 @@
         </div><!-- /canvas-inner -->
       </div>
       <div class="canvas-hint">모서리·가장자리를 드래그해 카드 크기 조절</div>
+      <div class="zoom-bar">
+        <span class="zoom-icon">🔍</span>
+        <input type="range" id="zoomSlider" min="25" max="200" value="100" step="5" />
+        <span id="zoomVal">100%</span>
+      </div>
       <div class="version-badge" id="versionBadge">v2.1</div>
+      <div class="version-badge" id="sizeBadge" style="right:auto;left:18px;pointer-events:none"></div>
       <div class="version-panel" id="versionPanel">
         <div class="version-panel-inner" id="versionPanelInner"></div>
       </div>
@@ -154,14 +150,47 @@
       <div class="panel-header">
         <span class="logo">블록 편집</span>
       </div>
+      <div class="panel-section">
+        <div class="section-label">블록 추가</div>
+        <div class="add-block-btns">
+          <button class="add-block-btn" data-type="title">＋ 제목</button>
+          <button class="add-block-btn" data-type="subtitle">＋ 부제목</button>
+          <button class="add-block-btn" data-type="body">＋ 본문</button>
+          <button class="add-block-btn" data-type="info">＋ 정보 행</button>
+          <button class="add-block-btn" data-type="divider">＋ 구분선</button>
+        </div>
+      </div>
       <div id="blockEditorContent">
         <div class="no-selection">블록을 클릭하면<br/>여기서 편집할 수 있어요</div>
       </div>
     </aside>
   </div>
 
+  <!-- CROP MODAL -->
+  <div class="crop-modal" id="cropModal">
+    <div class="crop-modal-box">
+      <div class="crop-modal-header">
+        <span class="crop-modal-title">이미지 자르기</span>
+        <div class="crop-modal-actions">
+          <button class="crop-btn-cancel" id="cropCancel">취소</button>
+          <button class="crop-btn-confirm" id="cropConfirm">적용</button>
+        </div>
+      </div>
+      <div class="crop-canvas-wrapper" id="cropCanvasWrapper">
+        <canvas id="cropCanvas"></canvas>
+        <div class="crop-overlay" id="cropOverlay">
+          <div class="crop-box" id="cropBox">
+            <div class="crop-handle crop-handle-nw" data-dir="nw"></div>
+            <div class="crop-handle crop-handle-ne" data-dir="ne"></div>
+            <div class="crop-handle crop-handle-sw" data-dir="sw"></div>
+            <div class="crop-handle crop-handle-se" data-dir="se"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

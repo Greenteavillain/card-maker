@@ -6,57 +6,125 @@ const STORAGE_KEY = 'cardmaker_v2';
 
 /* ---- 공통 폰트 목록 ---- */
 const FONTS = [
-  { label: '노토 산스',     value: "'Noto Sans KR', sans-serif" },
-  { label: '노토 세리프',   value: "'Noto Serif KR', serif" },
-  { label: '블랙 한 산스',  value: "'Black Han Sans', sans-serif" },
-  { label: '고운 돋움',     value: "'Gowun Dodum', sans-serif" },
-  { label: '개구',          value: "'Gaegu', cursive" },
-  { label: '주아',          value: "'Jua', sans-serif" },
-  { label: '도현',          value: "'Do Hyeon', sans-serif" },
-  { label: '나눔명조',      value: "'Nanum Myeongjo', serif" },
-  { label: '나눔고딕',      value: "'Nanum Gothic', sans-serif" },
-  { label: '나눔펜',        value: "'Nanum Pen Script', cursive" },
+  // 고딕/산스
+  { label: '노토 산스',      value: "'Noto Sans KR', sans-serif" },
+  { label: 'IBM Plex 산스',  value: "'IBM Plex Sans KR', sans-serif" },
+  { label: '나눔고딕',       value: "'Nanum Gothic', sans-serif" },
+  { label: '고운 돋움',      value: "'Gowun Dodum', sans-serif" },
+  { label: '도현',           value: "'Do Hyeon', sans-serif" },
+  { label: '주아',           value: "'Jua', sans-serif" },
+  { label: '블랙 한 산스',   value: "'Black Han Sans', sans-serif" },
+  { label: '스타일리시',     value: "'Stylish', sans-serif" },
+  { label: '해바라기',       value: "'Sunflower', sans-serif" },
+  { label: '오빗',           value: "'Orbit', sans-serif" },
+  { label: '구기',           value: "'Gugi', sans-serif" },
+  // 명조/세리프
+  { label: '노토 세리프',    value: "'Noto Serif KR', serif" },
+  { label: '나눔명조',       value: "'Nanum Myeongjo', serif" },
+  { label: '고운 바탕',      value: "'Gowun Batang', serif" },
+  { label: '송명',           value: "'Song Myung', serif" },
+  { label: '함렛',           value: "'Hahmlet', serif" },
+  // 손글씨/디스플레이
+  { label: '개구',           value: "'Gaegu', cursive" },
+  { label: '나눔펜',         value: "'Nanum Pen Script', cursive" },
+  { label: '나눔붓',         value: "'Nanum Brush Script', cursive" },
+  { label: '하이 멜로디',    value: "'Hi Melody', cursive" },
+  { label: '감자꽃',         value: "'Gamja Flower', cursive" },
+  { label: '푸어 스토리',    value: "'Poor Story', cursive" },
+  { label: '귀여운 글씨',    value: "'Cute Font', cursive" },
+  { label: '동해 독도',      value: "'East Sea Dokdo', cursive" },
+  { label: '독도',           value: "'Dokdo', cursive" },
+  { label: '싱글데이',       value: "'Single Day', cursive" },
+  { label: '기랑해랑',       value: "'Kirang Haerang', cursive" },
+  { label: '제주고딕',       value: "'Jeju Gothic', sans-serif" },
+  { label: '제주명조',       value: "'Jeju Myeongjo', serif" },
+  { label: '제주한라산',     value: "'Jeju Hallasan', cursive" },
+  { label: '부산체',         value: "'Dongle', sans-serif" },
+  { label: '온글잎 의연체',  value: "'Grandiflora One', serif" },
 ];
 
 const state = {
   imagePos: 'left',
-  imageSizePct: 45,
-  cardW: 900,
-  cardH: 500,
+  imageSizePct: 50,
+  cardW: 720,
+  cardH: 470,
   bgColor: '#ffffff',
   accentColor: '#ff6b9d',
   font: "'Noto Sans KR', sans-serif",
   selectedBlockId: null,
   blocks: [],
   isDark: false,
-  imageDataUrl: null, // base64 for localStorage
+  imageDataUrl: null,
+  originalImageDataUrl: null,
+  lastCropBox: null,
+  infoLabelWidth: 60, // px
+  imgPad: { top: 0, right: 0, bottom: 0, left: 0 },
 };
+
+/* ============================================================
+   INDEXED DB — 이미지 저장 (용량 제한 없음)
+   ============================================================ */
+const IDB_NAME = 'cardmaker';
+const IDB_STORE = 'images';
+
+function openIDB() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(IDB_NAME, 1);
+    req.onupgradeneeded = e => e.target.result.createObjectStore(IDB_STORE);
+    req.onsuccess = e => resolve(e.target.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+function saveImageToIDB(imageDataUrl, originalImageDataUrl, lastCropBox) {
+  openIDB().then(db => {
+    const store = db.transaction(IDB_STORE, 'readwrite').objectStore(IDB_STORE);
+    store.put(imageDataUrl || null, 'imageDataUrl');
+    store.put(originalImageDataUrl || null, 'originalImageDataUrl');
+    store.put(lastCropBox || null, 'lastCropBox');
+  }).catch(() => {});
+}
+
+function loadImageFromIDB() {
+  return new Promise(resolve => {
+    openIDB().then(db => {
+      const store = db.transaction(IDB_STORE, 'readonly').objectStore(IDB_STORE);
+      const keys = ['imageDataUrl', 'originalImageDataUrl', 'lastCropBox'];
+      const results = {};
+      let remaining = keys.length;
+      keys.forEach(key => {
+        const req = store.get(key);
+        req.onsuccess = () => { results[key] = req.result || null; if (--remaining === 0) resolve(results); };
+        req.onerror = () => { results[key] = null; if (--remaining === 0) resolve(results); };
+      });
+    }).catch(() => resolve({ imageDataUrl: null, originalImageDataUrl: null, lastCropBox: null }));
+  });
+}
+
+function clearImageFromIDB() {
+  openIDB().then(db => db.transaction(IDB_STORE, 'readwrite').objectStore(IDB_STORE).clear()).catch(() => {});
+}
 
 /* ============================================================
    LOCAL STORAGE — 자동 저장/불러오기
    ============================================================ */
 function saveToStorage() {
+  const data = {
+    imagePos: state.imagePos,
+    imageSizePct: state.imageSizePct,
+    cardW: state.cardW,
+    cardH: state.cardH,
+    bgColor: state.bgColor,
+    accentColor: state.accentColor,
+    font: state.font,
+    isDark: state.isDark,
+    blocks: state.blocks,
+    imgPad: state.imgPad,
+    infoLabelWidth: state.infoLabelWidth,
+  };
   try {
-    const data = {
-      imagePos: state.imagePos,
-      imageSizePct: state.imageSizePct,
-      cardW: state.cardW,
-      cardH: state.cardH,
-      bgColor: state.bgColor,
-      accentColor: state.accentColor,
-      font: state.font,
-      isDark: state.isDark,
-      blocks: state.blocks,
-      imageDataUrl: state.imageDataUrl,
-    };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-  } catch(e) {
-    // localStorage full (이미지 too large) — save without image
-    try {
-      const data = { ...arguments[0], imageDataUrl: null };
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-    } catch(e2) { /* silent */ }
-  }
+  } catch(e) { /* silent */ }
 }
 
 function loadFromStorage() {
@@ -122,14 +190,17 @@ function nextId() { return ++blockIdCounter; }
 
 function initDefaultBlocks() {
   state.blocks = [
-    { id: nextId(), type: 'supertitle', text: '2026 유니 작가의 여행드로잉', fontSize: 13, color: null, bold: false, align: 'left' },
-    { id: nextId(), type: 'title',      text: '바다 그리기 특강', fontSize: 38, color: null, bold: true,  align: 'left' },
-    { id: nextId(), type: 'subtitle',   text: '선 과제 스케치 해온 후\n수업에 채색 함께 하기', fontSize: 15, color: null, bold: false, align: 'left' },
+    { id: nextId(), type: 'supertitle', text: '2026 김란 작가의 여행드로잉', fontSize: 13, color: null, bold: false, align: 'left', font: "'Poor Story', cursive", marginBottom: -5 },
+    { id: nextId(), type: 'title',      text: '바다 그리기 특강', fontSize: 50, color: '#ffaf24', bold: true,  align: 'left', font: "'Jua', sans-serif", marginBottom: -5, fontWeight: '500' },
+    { id: nextId(), type: 'subtitle',   text: '선 과제 스케치 해온 후\n수업에 채색 함께 하기', fontSize: 15, color: null, bold: false, align: 'left', font: "'Nanum Myeongjo', serif" },
     { id: nextId(), type: 'divider',    text: '', fontSize: null, color: null, bold: false, align: 'left' },
-    { id: nextId(), type: 'info', label: '일시',   value: '1차 5월 19일 / 2차 5월 26일\n화요일 낮 2시~4시 30분', fontSize: 13, color: null, bold: false, align: 'left' },
-    { id: nextId(), type: 'info', label: '장소',   value: '꿈지락 (동천로 24, 302호)', fontSize: 13, color: null, bold: false, align: 'left' },
-    { id: nextId(), type: 'info', label: '수강료', value: '2회 8만원 (각 차시마다 작품 완성)', fontSize: 13, color: null, bold: false, align: 'left' },
-    { id: nextId(), type: 'body',       text: '강사 유니 @yuni_0010', fontSize: 12, color: null, bold: false, align: 'left' },
+    { id: nextId(), type: 'info', label: '일시',   value: '1차 5월 19일 / 2차 5월 26일\n화요일 낮 2시~4시 30분', fontSize: 14, color: null, bold: false, align: 'left' },
+    { id: nextId(), type: 'info', label: '장소',   value: '꿈지락 (동천로 24, 302호)', fontSize: 14, color: null, bold: false, align: 'left' },
+    { id: nextId(), type: 'info', label: '수강료', value: '2회 8만원 (각 차시마다 작품 완성)', fontSize: 14, color: null, bold: false, align: 'left' },
+    { id: nextId(), type: 'info', label: '계좌',   value: '카카오 3333-31-7185610', fontSize: 14, color: null, bold: false, align: 'left' },
+    { id: nextId(), type: 'info', label: '문의',   value: '010-0000-0000', fontSize: 14, color: null, bold: false, align: 'left' },
+    { id: nextId(), type: 'divider',    text: '', fontSize: null, color: null, bold: false, align: 'left' },
+    { id: nextId(), type: 'body',       text: '강사 김란 @sns_address', fontSize: 12, color: null, bold: false, align: 'left' },
   ];
   snapshot();
 }
@@ -165,15 +236,46 @@ function initFontSelect() {
   });
 }
 
+function getCardColors() {
+  const seen = new Set();
+  const colors = [];
+  [state.bgColor, state.accentColor, ...state.blocks.map(b => b.color)].forEach(c => {
+    if (c && !seen.has(c.toLowerCase())) { seen.add(c.toLowerCase()); colors.push(c); }
+  });
+  return colors;
+}
+
 function syncPanelUI() {
-  initFontSelect(); // 옵션 없으면 채우기
+  initFontSelect();
   const sel = document.getElementById('fontSelect');
   sel.value = state.font;
-  document.getElementById('imageSizeSlider').value = state.imageSizePct;
-  document.getElementById('imageSizeVal').textContent = state.imageSizePct + '%';
-  document.getElementById('cardW').value = Math.round(state.cardW);
-  document.getElementById('cardH').value = Math.round(state.cardH);
   document.querySelectorAll('.pos-btn').forEach(b => b.classList.toggle('active', b.dataset.pos === state.imagePos));
+
+  // 카드 크기 배지
+  const sizeBadge = document.getElementById('sizeBadge');
+  if (sizeBadge) sizeBadge.textContent = `${state.cardW} × ${state.cardH}`;
+
+  // hex input
+  const bgHexInput = document.getElementById('bgHexInput');
+  if (bgHexInput && document.activeElement !== bgHexInput) bgHexInput.value = state.bgColor;
+
+  // 카드 사용 색상
+  const container = document.getElementById('cardColorsSwatches');
+  if (container) {
+    container.innerHTML = '';
+    getCardColors().forEach(color => {
+      const chip = document.createElement('button');
+      chip.className = 'card-color-chip';
+      chip.style.background = color;
+      chip.title = color;
+      chip.addEventListener('click', () => {
+        state.bgColor = color;
+        state.isDark = isDarkColor(color);
+        scheduleSave(); render();
+      });
+      container.appendChild(chip);
+    });
+  }
 }
 
 function renderCard() {
@@ -192,29 +294,58 @@ function renderCard() {
 
   const imgRatio = state.imageNaturalRatio || 1; // w/h
 
+  // 이미지 영역 크기 계산
+  const scale = imageSizePct / 50; // 50% = 1배
+
   if (imagePos === 'left' || imagePos === 'right') {
-    // 이미지 높이 = 카드 높이, 너비 = 원본 비율 × 높이 × 슬라이더 배율
-    const scale = imageSizePct / 50; // 슬라이더 50% = 1배
-    const imgH = cardH;
-    const imgW = Math.min(Math.round(imgH * imgRatio * scale), Math.round(cardW * 0.75));
-    cardImageArea.style.width  = imgW + 'px';
-    cardImageArea.style.height = cardH + 'px';
+    // 이미지: 높이=카드높이, 너비=비율×높이×scale
+    const imgW = Math.round(cardH * imgRatio * scale);
+    const textW = Math.max(150, cardW - imgW);
+
+    cardImageArea.style.width    = imgW + 'px';
+    cardImageArea.style.minWidth = imgW + 'px';
+    cardImageArea.style.maxWidth = imgW + 'px';
+    cardImageArea.style.height   = cardH + 'px';
+
+    cardTextArea.style.width    = textW + 'px';
+    cardTextArea.style.minWidth = textW + 'px';
+    cardTextArea.style.maxWidth = textW + 'px';
+
     cardContainer.style.flexDirection = imagePos === 'right' ? 'row-reverse' : 'row';
+
   } else if (imagePos === 'top' || imagePos === 'bottom') {
-    // 이미지 너비 = 카드 너비, 높이 = 원본 비율 × 너비 × 슬라이더 배율
-    const scale = imageSizePct / 50;
-    const imgW = cardW;
-    const imgH = Math.min(Math.round(imgW / imgRatio * scale), Math.round(cardH * 0.75));
-    cardImageArea.style.width  = cardW + 'px';
-    cardImageArea.style.height = imgH + 'px';
+    // 이미지: 너비=카드너비, 높이=너비÷비율×scale
+    const imgH = Math.round(cardW / imgRatio * scale);
+    const textH = Math.max(100, cardH - imgH);
+
+    cardImageArea.style.width    = cardW + 'px';
+    cardImageArea.style.minWidth = '';
+    cardImageArea.style.maxWidth = '';
+    cardImageArea.style.height   = imgH + 'px';
+
+    cardTextArea.style.width    = '';
+    cardTextArea.style.minWidth = '';
+    cardTextArea.style.maxWidth = '';
+
     cardContainer.style.flexDirection = imagePos === 'bottom' ? 'column-reverse' : 'column';
+
   } else if (imagePos === 'background') {
-    cardImageArea.style.width  = '100%';
-    cardImageArea.style.height = '100%';
+    cardImageArea.style.width    = '100%';
+    cardImageArea.style.minWidth = '';
+    cardImageArea.style.maxWidth = '';
+    cardImageArea.style.height   = '100%';
+
+    cardTextArea.style.width    = '';
+    cardTextArea.style.minWidth = '';
+    cardTextArea.style.maxWidth = '';
+
     cardContainer.style.flexDirection = 'row';
   }
 
   cardTextArea.style.padding = '28px 36px';
+  const { top, right, bottom, left } = state.imgPad;
+  cardImageArea.style.padding = `${top}px ${right}px ${bottom}px ${left}px`;
+  cardImageArea.style.background = state.bgColor;
   blocksContainer.style.gap = '6px';
 
   // restore image if stored
@@ -238,7 +369,7 @@ function renderBlocks() {
 
 function getFontSize(block) {
   if (block.fontSize) return block.fontSize + 'px';
-  const defaults = { supertitle: 13, title: 36, subtitle: 15, body: 13, info: 13 };
+  const defaults = { supertitle: 13, title: 50, subtitle: 15, body: 13, info: 14 };
   return (defaults[block.type] || 13) + 'px';
 }
 
@@ -248,12 +379,13 @@ function buildBlockEl(block) {
   wrap.dataset.id = block.id;
   wrap.draggable = true;
   if (block.id === state.selectedBlockId) wrap.classList.add('selected');
+  if (block.marginBottom) wrap.style.marginBottom = block.marginBottom + 'px';
 
   if (block.type === 'divider') {
     const line = document.createElement('div');
     line.className = 'block-text';
     line.style.height = '1px';
-    line.style.background = state.isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)';
+    line.style.background = block.color || (state.isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)');
     line.style.margin = '4px 0';
     wrap.appendChild(line);
     wrap.addEventListener('click', () => selectBlock(block.id));
@@ -267,11 +399,15 @@ function buildBlockEl(block) {
     grid.style.fontSize = getFontSize(block);
     if (block.color) grid.style.color = block.color;
     if (block.font) grid.style.fontFamily = block.font;
+    const infoFw = block.fontWeight || (block.bold ? '700' : null);
+    if (infoFw) grid.style.fontWeight = infoFw;
     grid.style.textAlign = block.align || 'left';
 
     const labelEl = document.createElement('strong');
     labelEl.className = 'info-label';
     labelEl.textContent = block.label || '';
+    labelEl.style.width = state.infoLabelWidth + 'px';
+    labelEl.style.minWidth = state.infoLabelWidth + 'px';
 
     const valueEl = document.createElement('span');
     valueEl.className = 'info-value';
@@ -294,7 +430,8 @@ function buildBlockEl(block) {
   textEl.style.fontSize = getFontSize(block);
   textEl.style.whiteSpace = 'pre-wrap';
   if (block.color) textEl.style.color = block.color;
-  if (block.bold)  textEl.style.fontWeight = '700';
+  const fw = block.fontWeight || (block.bold ? '700' : null);
+  if (fw) textEl.style.fontWeight = fw;
   if (block.font)  textEl.style.fontFamily = block.font;
   textEl.style.textAlign = block.align || 'left';
   textEl.textContent = block.text || '';
@@ -405,6 +542,32 @@ function renderBlockEditor() {
   div.className = 'block-editor';
 
   if (block.type === 'info') {
+    div.appendChild(makeEditorField('라벨 너비 (px)', () => {
+      const row = document.createElement('div');
+      row.style.display = 'flex';
+      row.style.alignItems = 'center';
+      row.style.gap = '8px';
+      const slider = document.createElement('input');
+      slider.type = 'range';
+      slider.min = 30; slider.max = 120;
+      slider.value = state.infoLabelWidth;
+      slider.style.flex = '1';
+      slider.style.accentColor = 'var(--accent)';
+      const val = document.createElement('span');
+      val.textContent = state.infoLabelWidth + 'px';
+      val.style.fontSize = '11px';
+      val.style.color = '#aaa';
+      val.style.minWidth = '36px';
+      slider.addEventListener('input', () => {
+        state.infoLabelWidth = parseInt(slider.value);
+        val.textContent = state.infoLabelWidth + 'px';
+        renderBlocks();
+        scheduleSave();
+      });
+      row.appendChild(slider);
+      row.appendChild(val);
+      return row;
+    }));
     div.appendChild(makeEditorField('라벨 (굵게 표시)', () => {
       const inp = document.createElement('input');
       inp.className = 'editor-input';
@@ -456,49 +619,110 @@ function renderBlockEditor() {
     return sel;
   }));
 
+  if (block.type === 'divider') {
+    div.appendChild(makeEditorField('선 색상', () => {
+      const wrap = document.createElement('div');
+      wrap.style.cssText = 'display:flex;gap:8px;align-items:center';
+      const picker = document.createElement('input');
+      picker.type = 'color';
+      picker.style.cssText = 'width:30px;height:24px;padding:1px;border:1px solid rgba(255,255,255,0.15);border-radius:4px;cursor:pointer;background:none';
+      const defaultColor = state.isDark ? '#ffffff' : '#1a1a1a';
+      picker.value = block.color || defaultColor;
+      const hexInput = document.createElement('input');
+      hexInput.type = 'text';
+      hexInput.className = 'hex-input';
+      hexInput.style.cssText = 'margin-top:0;flex:1';
+      hexInput.maxLength = 7;
+      hexInput.value = picker.value;
+      function applyDividerColor(hex) {
+        block.color = hex; picker.value = hex; hexInput.value = hex;
+        renderBlocks(); scheduleSave();
+      }
+      picker.addEventListener('input', () => applyDividerColor(picker.value));
+      picker.addEventListener('change', snapshot);
+      hexInput.addEventListener('input', () => {
+        let val = hexInput.value.trim();
+        if (!val.startsWith('#')) val = '#' + val;
+        if (/^#[0-9a-fA-F]{6}$/.test(val)) applyDividerColor(val);
+      });
+      hexInput.addEventListener('change', snapshot);
+      const resetBtn = document.createElement('button');
+      resetBtn.className = 'toggle-btn';
+      resetBtn.textContent = '자동';
+      resetBtn.addEventListener('click', () => { block.color = null; picker.value = defaultColor; hexInput.value = defaultColor; renderBlocks(); snapshot(); });
+      wrap.appendChild(picker); wrap.appendChild(hexInput); wrap.appendChild(resetBtn);
+      return wrap;
+    }));
+  }
+
   div.appendChild(makeEditorField('글자 크기 (px)', () => {
     const inp = document.createElement('input');
     inp.className = 'editor-input';
     inp.type = 'number'; inp.min = 8; inp.max = 120;
-    const defaults = { supertitle:13, title:36, subtitle:15, body:13, info:13, divider:0 };
+    const defaults = { supertitle:13, title:50, subtitle:15, body:13, info:14, divider:0 };
     inp.value = block.fontSize ?? defaults[block.type] ?? 13;
     inp.addEventListener('input', () => { block.fontSize = parseInt(inp.value) || null; renderBlocks(); scheduleSave(); });
     inp.addEventListener('change', snapshot);
     return inp;
   }));
 
-  // 폰트 선택 (미리보기)
+  // 폰트 선택 (드롭다운 미리보기)
   if (block.type !== 'divider') {
     div.appendChild(makeEditorField('폰트', () => {
-      const wrap = document.createElement('div');
-      wrap.className = 'font-picker';
+      const wrapper = document.createElement('div');
+      wrapper.className = 'font-dropdown-wrapper';
+
+      const selected = document.createElement('div');
+      selected.className = 'font-dropdown-selected';
+      const currentFont = block.font || state.font;
+      const currentLabel = FONTS.find(f => f.value === currentFont)?.label || '기본';
+      selected.style.fontFamily = currentFont;
+      selected.textContent = currentLabel;
+
+      const dropdown = document.createElement('div');
+      dropdown.className = 'font-dropdown-list';
+
+      // 기본 옵션
+      const defaultOpt = document.createElement('div');
+      defaultOpt.className = 'font-dropdown-item' + (!block.font ? ' on' : '');
+      defaultOpt.textContent = '기본';
+      defaultOpt.addEventListener('click', () => {
+        block.font = null;
+        selected.textContent = '기본';
+        selected.style.fontFamily = state.font;
+        dropdown.classList.remove('open');
+        renderBlocks(); snapshot();
+        dropdown.querySelectorAll('.font-dropdown-item').forEach(el => el.classList.remove('on'));
+        defaultOpt.classList.add('on');
+      });
+      dropdown.appendChild(defaultOpt);
 
       FONTS.forEach(f => {
-        const btn = document.createElement('button');
-        btn.className = 'font-pick-btn' + (block.font === f.value ? ' on' : '');
-        btn.style.fontFamily = f.value;
-        btn.textContent = f.label;
-        btn.title = f.label;
-        btn.addEventListener('click', () => {
-          block.font = block.font === f.value ? null : f.value;
+        const item = document.createElement('div');
+        item.className = 'font-dropdown-item' + (block.font === f.value ? ' on' : '');
+        item.style.fontFamily = f.value;
+        item.textContent = f.label;
+        item.addEventListener('click', () => {
+          block.font = f.value;
+          selected.textContent = f.label;
+          selected.style.fontFamily = f.value;
+          dropdown.classList.remove('open');
           renderBlocks(); snapshot();
-          // re-render editor to update active state
-          renderBlockEditor();
+          dropdown.querySelectorAll('.font-dropdown-item').forEach(el => el.classList.remove('on'));
+          item.classList.add('on');
         });
-        wrap.appendChild(btn);
+        dropdown.appendChild(item);
       });
 
-      const resetBtn = document.createElement('button');
-      resetBtn.className = 'font-pick-btn' + (!block.font ? ' on' : '');
-      resetBtn.textContent = '기본';
-      resetBtn.addEventListener('click', () => {
-        block.font = null;
-        renderBlocks(); snapshot();
-        renderBlockEditor();
+      selected.addEventListener('click', e => {
+        e.stopPropagation();
+        dropdown.classList.toggle('open');
       });
-      wrap.insertBefore(resetBtn, wrap.firstChild);
+      document.addEventListener('click', () => dropdown.classList.remove('open'));
 
-      return wrap;
+      wrapper.appendChild(selected);
+      wrapper.appendChild(dropdown);
+      return wrapper;
     }));
   }
 
@@ -522,37 +746,97 @@ function renderBlockEditor() {
     }));
 
     div.appendChild(makeEditorField('색상', () => {
+      const wrap = document.createElement('div');
+      wrap.style.cssText = 'display:flex;flex-direction:column;gap:6px';
+
       const row = document.createElement('div');
       row.className = 'editor-color-row';
+
       const picker = document.createElement('input');
       picker.type = 'color';
       picker.value = block.color || state.accentColor;
-      picker.addEventListener('input', () => { block.color = picker.value; renderBlocks(); scheduleSave(); });
+
+      const hexInput = document.createElement('input');
+      hexInput.type = 'text';
+      hexInput.className = 'hex-input';
+      hexInput.style.cssText = 'margin-top:0;flex:1';
+      hexInput.maxLength = 7;
+      hexInput.value = picker.value;
+
+      function applyColor(hex) {
+        block.color = hex; picker.value = hex; hexInput.value = hex;
+        renderBlocks(); scheduleSave();
+      }
+      picker.addEventListener('input', () => { hexInput.value = picker.value; applyColor(picker.value); });
       picker.addEventListener('change', snapshot);
+      hexInput.addEventListener('input', () => {
+        let val = hexInput.value.trim();
+        if (!val.startsWith('#')) val = '#' + val;
+        if (/^#[0-9a-fA-F]{6}$/.test(val)) applyColor(val);
+      });
+      hexInput.addEventListener('change', snapshot);
+
       const resetBtn = document.createElement('button');
       resetBtn.className = 'toggle-btn';
       resetBtn.textContent = '자동';
-      resetBtn.addEventListener('click', () => { block.color = null; picker.value = state.accentColor; renderBlocks(); snapshot(); });
+      resetBtn.addEventListener('click', () => {
+        block.color = null; picker.value = state.accentColor; hexInput.value = state.accentColor;
+        renderBlocks(); snapshot();
+      });
+
       row.appendChild(picker);
+      row.appendChild(hexInput);
       row.appendChild(resetBtn);
-      return row;
+      wrap.appendChild(row);
+
+      // 카드 사용 색상 칩
+      const chipRow = document.createElement('div');
+      chipRow.className = 'card-colors-swatches';
+      getCardColors().forEach(color => {
+        const chip = document.createElement('button');
+        chip.className = 'card-color-chip';
+        chip.style.background = color;
+        chip.title = color;
+        chip.addEventListener('click', e => { e.preventDefault(); applyColor(color); snapshot(); });
+        chipRow.appendChild(chip);
+      });
+      wrap.appendChild(chipRow);
+
+      return wrap;
     }));
   }
 
-  if (block.type !== 'divider' && block.type !== 'info') {
-    div.appendChild(makeEditorField('굵게', () => {
-      const btn = document.createElement('button');
-      btn.className = 'toggle-btn' + (block.bold ? ' on' : '');
-      btn.textContent = block.bold ? 'ON' : 'OFF';
-      btn.addEventListener('click', () => {
-        block.bold = !block.bold;
-        btn.classList.toggle('on', block.bold);
-        btn.textContent = block.bold ? 'ON' : 'OFF';
+  if (block.type !== 'divider') {
+    div.appendChild(makeEditorField('굵기', () => {
+      const sel = document.createElement('select');
+      sel.className = 'editor-select';
+      const weights = [['', '기본'], ['300', '300'], ['400', '400'], ['500', '500'], ['600', '600'], ['700', '700'], ['800', '800'], ['900', '900']];
+      const current = block.fontWeight || (block.bold ? '700' : '');
+      weights.forEach(([val, label]) => {
+        const opt = document.createElement('option');
+        opt.value = val; opt.textContent = label;
+        if (val === current) opt.selected = true;
+        sel.appendChild(opt);
+      });
+      sel.addEventListener('change', () => {
+        block.fontWeight = sel.value || null;
+        block.bold = sel.value === '700';
         renderBlocks(); snapshot();
       });
-      return btn;
+      return sel;
     }));
   }
+
+  div.appendChild(makeEditorField('아래 여백 (px)', () => {
+    const inp = document.createElement('input');
+    inp.className = 'editor-input';
+    inp.type = 'number'; inp.min = -60; inp.max = 200;
+    inp.value = block.marginBottom ?? 0;
+    inp.placeholder = '0 (기본값)';
+    inp.addEventListener('input', () => { block.marginBottom = parseInt(inp.value) || 0; renderBlocks(); scheduleSave(); });
+    inp.addEventListener('change', snapshot);
+    return inp;
+  }));
 
   const delBtn = document.createElement('button');
   delBtn.className = 'del-block-btn';
@@ -607,6 +891,7 @@ function addBlock(type) {
     label: type === 'info' ? '항목' : undefined,
     value: type === 'info' ? '내용' : undefined,
     fontSize: null, color: null, bold: false, align: 'left',
+    font: type === 'title' ? "'Jua', sans-serif" : null,
   };
   state.blocks.push(block);
   state.selectedBlockId = block.id;
@@ -662,9 +947,9 @@ document.addEventListener('mousemove', e => {
   const dy = e.clientY - resizing.startY;
   if (resizing.dir.includes('e')) state.cardW = Math.max(300, resizing.startW + dx);
   if (resizing.dir.includes('s')) state.cardH = Math.max(200, resizing.startH + dy);
-  document.getElementById('cardW').value = Math.round(state.cardW);
-  document.getElementById('cardH').value = Math.round(state.cardH);
   document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+  const sizeBadge = document.getElementById('sizeBadge');
+  if (sizeBadge) sizeBadge.textContent = `${state.cardW} × ${state.cardH}`;
   renderCard();
   positionHandles();
 });
@@ -682,13 +967,15 @@ document.getElementById('imageUpload').addEventListener('change', e => {
   const reader = new FileReader();
   reader.onload = ev => {
     state.imageDataUrl = ev.target.result;
+    state.originalImageDataUrl = ev.target.result; // 원본 보존
+    state.lastCropBox = null; // 새 이미지 업로드 시 크롭 영역 초기화
     cardImage.src = state.imageDataUrl;
     cardImage.style.display = 'block';
     imagePlaceholder.style.display = 'none';
-    // 원본 비율 저장
     const img = new Image();
     img.onload = () => {
       state.imageNaturalRatio = img.naturalWidth / img.naturalHeight;
+      saveImageToIDB(state.imageDataUrl, state.originalImageDataUrl, state.lastCropBox);
       scheduleSave();
       renderCard();
       requestAnimationFrame(positionHandles);
@@ -696,6 +983,188 @@ document.getElementById('imageUpload').addEventListener('change', e => {
     img.src = state.imageDataUrl;
   };
   reader.readAsDataURL(file);
+});
+
+// 카드 이미지 클릭 → 크롭 모달
+cardImage.addEventListener('click', () => {
+  if (!state.imageDataUrl) return;
+  openCropModal(state.originalImageDataUrl || state.imageDataUrl);
+});
+
+/* ============================================================
+   CROP MODAL
+   ============================================================ */
+let cropState = {
+  imgNatW: 0, imgNatH: 0,
+  displayW: 0, displayH: 0,
+  scaleX: 1, scaleY: 1,
+  box: { x: 0, y: 0, w: 0, h: 0 },
+  dragging: false, resizing: null,
+  dragStart: null,
+};
+
+function openCropModal(src) {
+  const modal = document.getElementById('cropModal');
+  const canvas = document.getElementById('cropCanvas');
+  const wrapper = document.getElementById('cropCanvasWrapper');
+  modal.classList.add('open');
+
+  const img = new Image();
+  img.onload = () => {
+    cropState.imgNatW = img.naturalWidth;
+    cropState.imgNatH = img.naturalHeight;
+
+    // 최대 표시 크기
+    const maxW = Math.min(window.innerWidth * 0.85, 900);
+    const maxH = window.innerHeight * 0.7;
+    const ratio = img.naturalWidth / img.naturalHeight;
+
+    let dW = maxW;
+    let dH = dW / ratio;
+    if (dH > maxH) { dH = maxH; dW = dH * ratio; }
+
+    cropState.displayW = dW;
+    cropState.displayH = dH;
+    cropState.scaleX = img.naturalWidth / dW;
+    cropState.scaleY = img.naturalHeight / dH;
+
+    canvas.width = dW;
+    canvas.height = dH;
+    canvas.style.width = dW + 'px';
+    canvas.style.height = dH + 'px';
+
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(img, 0, 0, dW, dH);
+
+    // 마지막 크롭 영역 복원, 없으면 전체
+    if (state.lastCropBox) {
+      cropState.box = {
+        x: state.lastCropBox.x * dW,
+        y: state.lastCropBox.y * dH,
+        w: state.lastCropBox.w * dW,
+        h: state.lastCropBox.h * dH,
+      };
+    } else {
+      cropState.box = { x: 0, y: 0, w: dW, h: dH };
+    }
+    updateCropBox();
+  };
+  img.src = src;
+}
+
+function updateCropBox() {
+  const box = document.getElementById('cropBox');
+  const { x, y, w, h } = cropState.box;
+  box.style.left   = x + 'px';
+  box.style.top    = y + 'px';
+  box.style.width  = w + 'px';
+  box.style.height = h + 'px';
+}
+
+// 크롭박스 드래그 이동
+const cropBox = document.getElementById('cropBox');
+const cropOverlay = document.getElementById('cropOverlay');
+
+cropBox.addEventListener('mousedown', e => {
+  if (e.target.classList.contains('crop-handle')) return;
+  e.preventDefault();
+  cropState.dragging = true;
+  cropState.dragStart = { mx: e.clientX, my: e.clientY, bx: cropState.box.x, by: cropState.box.y };
+});
+
+// 핸들 리사이즈
+document.querySelectorAll('.crop-handle').forEach(handle => {
+  handle.addEventListener('mousedown', e => {
+    e.preventDefault();
+    e.stopPropagation();
+    cropState.resizing = {
+      dir: handle.dataset.dir,
+      mx: e.clientX, my: e.clientY,
+      box: { ...cropState.box }
+    };
+  });
+});
+
+document.addEventListener('mousemove', e => {
+  const { displayW, displayH } = cropState;
+  const minSize = 20;
+
+  if (cropState.dragging) {
+    const dx = e.clientX - cropState.dragStart.mx;
+    const dy = e.clientY - cropState.dragStart.my;
+    let nx = cropState.dragStart.bx + dx;
+    let ny = cropState.dragStart.by + dy;
+    nx = Math.max(0, Math.min(displayW - cropState.box.w, nx));
+    ny = Math.max(0, Math.min(displayH - cropState.box.h, ny));
+    cropState.box.x = nx;
+    cropState.box.y = ny;
+    updateCropBox();
+  }
+
+  if (cropState.resizing) {
+    const { dir, mx, my, box } = cropState.resizing;
+    const dx = e.clientX - mx;
+    const dy = e.clientY - my;
+    let { x, y, w, h } = box;
+
+    if (dir.includes('e')) w = Math.max(minSize, Math.min(displayW - x, w + dx));
+    if (dir.includes('s')) h = Math.max(minSize, Math.min(displayH - y, h + dy));
+    if (dir.includes('w')) { const nw = Math.max(minSize, w - dx); x = Math.max(0, x + w - nw); w = nw; }
+    if (dir.includes('n')) { const nh = Math.max(minSize, h - dy); y = Math.max(0, y + h - nh); h = nh; }
+
+    cropState.box = { x, y, w, h };
+    updateCropBox();
+  }
+});
+
+document.addEventListener('mouseup', () => {
+  cropState.dragging = false;
+  cropState.resizing = null;
+});
+
+document.getElementById('cropCancel').addEventListener('click', () => {
+  document.getElementById('cropModal').classList.remove('open');
+});
+
+document.getElementById('cropConfirm').addEventListener('click', () => {
+  const { box, scaleX, scaleY, imgNatW, imgNatH } = cropState;
+  const src = state.originalImageDataUrl || state.imageDataUrl;
+
+  const img = new Image();
+  img.onload = () => {
+    // 원본 해상도로 크롭
+    const natX = Math.round(box.x * scaleX);
+    const natY = Math.round(box.y * scaleY);
+    const natW = Math.round(box.w * scaleX);
+    const natH = Math.round(box.h * scaleY);
+
+    const offscreen = document.createElement('canvas');
+    offscreen.width  = natW;
+    offscreen.height = natH;
+    const ctx = offscreen.getContext('2d');
+    ctx.drawImage(img, natX, natY, natW, natH, 0, 0, natW, natH);
+
+    const croppedUrl = offscreen.toDataURL('image/png');
+    state.imageDataUrl = croppedUrl;
+    state.imageNaturalRatio = natW / natH;
+    state.lastCropBox = {
+      x: box.x / cropState.displayW,
+      y: box.y / cropState.displayH,
+      w: box.w / cropState.displayW,
+      h: box.h / cropState.displayH,
+    };
+
+    cardImage.src = croppedUrl;
+    cardImage.style.display = 'block';
+    imagePlaceholder.style.display = 'none';
+
+    saveImageToIDB(state.imageDataUrl, state.originalImageDataUrl, state.lastCropBox);
+    scheduleSave();
+    renderCard();
+    requestAnimationFrame(positionHandles);
+    document.getElementById('cropModal').classList.remove('open');
+  };
+  img.src = src;
 });
 
 /* ============================================================
@@ -711,37 +1180,19 @@ document.getElementById('imagePositionGrid').querySelectorAll('.pos-btn').forEac
   });
 });
 
-document.getElementById('imageSizeSlider').addEventListener('input', e => {
-  state.imageSizePct = parseInt(e.target.value);
-  document.getElementById('imageSizeVal').textContent = state.imageSizePct + '%';
-  scheduleSave();
-  renderCard();
-});
-
 /* ============================================================
-   CARD SIZE
+   IMAGE PADDING
    ============================================================ */
-document.querySelectorAll('.preset-btn').forEach(btn => {
-  btn.addEventListener('click', () => {
-    document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    state.cardW = parseInt(btn.dataset.w);
-    state.cardH = parseInt(btn.dataset.h);
-    document.getElementById('cardW').value = state.cardW;
-    document.getElementById('cardH').value = state.cardH;
+['Top','Right','Bottom','Left'].forEach(dir => {
+  document.getElementById('imgPad' + dir).addEventListener('input', e => {
+    state.imgPad[dir.toLowerCase()] = parseInt(e.target.value) || 0;
+    renderCard();
     scheduleSave();
-    render();
   });
 });
 
-document.getElementById('cardW').addEventListener('change', e => {
-  state.cardW = Math.max(300, parseInt(e.target.value)||300);
-  scheduleSave(); render();
-});
-document.getElementById('cardH').addEventListener('change', e => {
-  state.cardH = Math.max(200, parseInt(e.target.value)||200);
-  scheduleSave(); render();
-});
+
+
 
 /* ============================================================
    FONT & COLORS
@@ -768,6 +1219,14 @@ document.getElementById('bgColorPicker').addEventListener('input', e => {
   state.bgColor = e.target.value; state.isDark = isDarkColor(state.bgColor);
   scheduleSave(); render();
 });
+document.getElementById('bgHexInput').addEventListener('input', e => {
+  let val = e.target.value.trim();
+  if (!val.startsWith('#')) val = '#' + val;
+  if (/^#[0-9a-fA-F]{6}$/.test(val)) {
+    state.bgColor = val; state.isDark = isDarkColor(val);
+    scheduleSave(); render();
+  }
+});
 document.getElementById('accentColorPicker').addEventListener('input', e => {
   state.accentColor = e.target.value;
   scheduleSave(); render();
@@ -786,23 +1245,55 @@ document.querySelectorAll('.add-block-btn').forEach(btn => {
 });
 
 /* ============================================================
-   EXPORT — PNG / JPG / PDF
+   EXPORT SCALE & ZOOM
    ============================================================ */
-async function captureCanvas() {
+let exportScale = 4;
+let zoomLevel = 1;
+
+document.querySelectorAll('.scale-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.scale-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    exportScale = parseInt(btn.dataset.scale);
+  });
+});
+
+document.getElementById('zoomSlider').addEventListener('input', e => {
+  zoomLevel = parseInt(e.target.value) / 100;
+  document.getElementById('zoomVal').textContent = e.target.value + '%';
+  document.querySelector('.canvas-inner').style.transform = `scale(${zoomLevel})`;
+  document.querySelector('.canvas-inner').style.transformOrigin = 'center center';
+});
+
+async function captureCanvas(scale) {
   const prevSel = state.selectedBlockId;
   state.selectedBlockId = null;
   renderBlocks();
   [handleE, handleS, handleSE].forEach(h => h.style.display = 'none');
-  document.querySelectorAll('.block-controls').forEach(h => h.style.display='none');
+  document.querySelectorAll('.block-controls').forEach(h => h.style.display = 'none');
+
+  cardContainer.style.boxShadow = 'none';
+  cardContainer.style.borderRadius = '0';
 
   let canvas;
   try {
     canvas = await html2canvas(cardContainer, {
-      scale: 2, useCORS: true,
+      scale: scale,
+      useCORS: true,
       backgroundColor: state.bgColor,
-      width: state.cardW, height: state.cardH,
+      width: state.cardW,
+      height: state.cardH,
+      x: 0,
+      y: 0,
+      scrollX: 0,
+      scrollY: 0,
+      windowWidth: state.cardW,
+      windowHeight: state.cardH,
+      logging: false,
     });
   } finally {
+    cardContainer.style.boxShadow = '';
+    cardContainer.style.borderRadius = '';
     [handleE, handleS, handleSE].forEach(h => h.style.display = '');
     state.selectedBlockId = prevSel;
     render();
@@ -811,35 +1302,19 @@ async function captureCanvas() {
 }
 
 document.getElementById('exportPng').addEventListener('click', async () => {
-  const canvas = await captureCanvas();
+  const canvas = await captureCanvas(exportScale);
   const link = document.createElement('a');
-  link.download = 'card.png';
+  link.download = `card_${exportScale}x.png`;
   link.href = canvas.toDataURL('image/png');
   link.click();
 });
 
 document.getElementById('exportJpg').addEventListener('click', async () => {
-  const canvas = await captureCanvas();
+  const canvas = await captureCanvas(exportScale);
   const link = document.createElement('a');
-  link.download = 'card.jpg';
-  link.href = canvas.toDataURL('image/jpeg', 0.92);
+  link.download = `card_${exportScale}x.jpg`;
+  link.href = canvas.toDataURL('image/jpeg', 0.95);
   link.click();
-});
-
-document.getElementById('exportPdf').addEventListener('click', async () => {
-  const canvas = await captureCanvas();
-  const { jsPDF } = window.jspdf;
-  const imgData = canvas.toDataURL('image/jpeg', 0.95);
-  // card dimensions in mm (1px = 0.2646mm at 96dpi)
-  const mmW = state.cardW * 0.2646;
-  const mmH = state.cardH * 0.2646;
-  const pdf = new jsPDF({
-    orientation: mmW > mmH ? 'landscape' : 'portrait',
-    unit: 'mm',
-    format: [mmW, mmH],
-  });
-  pdf.addImage(imgData, 'JPEG', 0, 0, mmW, mmH);
-  pdf.save('card.pdf');
 });
 
 /* ============================================================
@@ -848,13 +1323,17 @@ document.getElementById('exportPdf').addEventListener('click', async () => {
 document.getElementById('clearBtn').addEventListener('click', () => {
   if (!confirm('모든 내용을 초기화할까요?')) return;
   clearStorage();
+  clearImageFromIDB();
+  state.cardW = 720;
+  state.cardH = 470;
   state.imageDataUrl = null;
+  state.originalImageDataUrl = null;
   cardImage.src = '';
   cardImage.style.display = 'none';
-  imagePlaceholder.style.display = 'flex';
   blockIdCounter = 0;
   initDefaultBlocks();
   render();
+  applyDefaultImage();
 });
 
 /* ============================================================
@@ -919,25 +1398,59 @@ function initVersionPanel() {
 }
 
 
-const loaded = loadFromStorage();
-if (!loaded) {
-  initDefaultBlocks();
-} else {
-  if (state.blocks.length > 0) {
-    blockIdCounter = Math.max(...state.blocks.map(b => b.id));
-  }
-  // 저장된 이미지에서 비율 복원
-  if (state.imageDataUrl) {
+function applyDefaultImage() {
+  return new Promise(resolve => {
     const img = new Image();
     img.onload = () => {
+      state.imageDataUrl = 'default.png';
+      state.originalImageDataUrl = 'default.png';
       state.imageNaturalRatio = img.naturalWidth / img.naturalHeight;
+      cardImage.src = 'default.png';
+      cardImage.style.display = 'block';
+      imagePlaceholder.style.display = 'none';
       renderCard();
       requestAnimationFrame(positionHandles);
+      resolve();
     };
-    img.src = state.imageDataUrl;
-  }
-  snapshot();
+    img.onerror = resolve;
+    img.src = 'default.png';
+  });
 }
-initFontSelect();
-render();
-initVersionPanel();
+
+(async () => {
+  const loaded = loadFromStorage();
+  if (!loaded) {
+    initDefaultBlocks();
+    await applyDefaultImage();
+  } else {
+    if (state.blocks.length > 0) {
+      blockIdCounter = Math.max(...state.blocks.map(b => b.id));
+    }
+    snapshot();
+  }
+  initFontSelect();
+  render();
+  initVersionPanel();
+
+  // IDB에서 이미지 복원 (비동기), 없으면 기본 이미지
+  if (loaded) {
+    const imgData = await loadImageFromIDB();
+    if (imgData.imageDataUrl) {
+      state.imageDataUrl = imgData.imageDataUrl;
+      state.originalImageDataUrl = imgData.originalImageDataUrl;
+      state.lastCropBox = imgData.lastCropBox;
+      cardImage.src = imgData.imageDataUrl;
+      cardImage.style.display = 'block';
+      imagePlaceholder.style.display = 'none';
+      const img = new Image();
+      img.onload = () => {
+        state.imageNaturalRatio = img.naturalWidth / img.naturalHeight;
+        renderCard();
+        requestAnimationFrame(positionHandles);
+      };
+      img.src = imgData.imageDataUrl;
+    } else {
+      await applyDefaultImage();
+    }
+  }
+})();

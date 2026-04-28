@@ -588,6 +588,7 @@ body {
 /* ---- RIGHT PANEL ---- */
 .right-panel {
   overflow-y: auto;
+  overflow-x: hidden;
   scrollbar-width: thin;
   scrollbar-color: #333 transparent;
 }

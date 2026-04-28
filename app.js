@@ -873,6 +873,7 @@ function initFontSelect() {
 
 
 const VERSIONS = [
+  { tag: 'v2.1',   log: '폰트 피커 초기화 순서 수정\n우측 패널 스크롤 개선' },
   { tag: 'v2.0',   log: '블록별 폰트 선택\n폰트 미리보기 UI\n나눔체/도현 추가' },
   { tag: 'v1.9',   log: '저장 키 초기화 (예시 글 복원)\n상단/하단 이미지 비율 수정' },
   { tag: 'v1.8',   log: '이미지 비율 로직 완전 재설계\n높이=카드높이, 너비=원본비율 자동계산' },
@@ -928,6 +929,6 @@ if (!loaded) {
   }
   snapshot();
 }
-render();
 initFontSelect();
+render();
 initVersionPanel();

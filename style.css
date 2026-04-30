@@ -933,10 +933,20 @@ body {
 .crop-btn-confirm:hover { opacity: 0.85; }
 
 .crop-canvas-wrapper {
-  position: relative;
-  overflow: hidden;
+  overflow: auto;
   cursor: crosshair;
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-start;
 }
+
+.crop-canvas-frame {
+  position: relative;
+  display: inline-block;
+  line-height: 0;
+  flex-shrink: 0;
+}
+
 #cropCanvas { display: block; }
 
 .crop-overlay {
@@ -1160,8 +1170,6 @@ body {
   }
   .crop-canvas-wrapper {
     flex: 1;
-    overflow: auto;
-    display: flex;
     align-items: center;
     justify-content: center;
     -webkit-overflow-scrolling: touch;

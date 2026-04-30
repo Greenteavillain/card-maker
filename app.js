@@ -1029,9 +1029,10 @@ function openCropModal(src) {
     cropState.imgNatW = img.naturalWidth;
     cropState.imgNatH = img.naturalHeight;
 
-    // 최대 표시 크기
-    const maxW = Math.min(window.innerWidth * 0.85, 900);
-    const maxH = window.innerHeight * 0.7;
+    // 최대 표시 크기 (모바일: 전체화면 기준)
+    const isMobile = window.innerWidth <= 768;
+    const maxW = isMobile ? window.innerWidth - 16 : Math.min(window.innerWidth * 0.85, 900);
+    const maxH = isMobile ? window.innerHeight - 80 : window.innerHeight * 0.7;
     const ratio = img.naturalWidth / img.naturalHeight;
 
     let dW = maxW;

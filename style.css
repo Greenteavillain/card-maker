@@ -131,6 +131,19 @@ body {
   flex: 1;
   accent-color: var(--accent);
 }
+.size-label {
+  min-width: 16px;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--panel-muted);
+  text-transform: uppercase;
+}
+.size-val {
+  min-width: 30px;
+  text-align: right;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
 
 /* ---- SIZE PRESETS ---- */
 .size-presets {
@@ -953,11 +966,209 @@ body {
 .crop-handle-sw { bottom: -6px; left: -6px; cursor: sw-resize; }
 .crop-handle-se { bottom: -6px; right: -6px; cursor: se-resize; }
 
-/* ---- RESPONSIVE ---- */
-@media (max-width: 900px) {
+/* ---- RESPONSIVE: TABLET ---- */
+@media (max-width: 900px) and (min-width: 769px) {
   :root {
     --panel-w: 180px;
     --right-panel-w: 200px;
+  }
+}
+
+/* ---- MOBILE ELEMENTS (hidden on desktop) ---- */
+.mobile-header { display: none; }
+.mobile-tab-bar { display: none; }
+
+/* ---- RESPONSIVE: MOBILE ---- */
+@media (max-width: 768px) {
+  body {
+    overflow: hidden;
+    height: 100svh;
+  }
+
+  .app {
+    display: flex;
+    flex-direction: column;
+    height: 100svh;
+    height: 100dvh;
+  }
+
+  /* Mobile header */
+  .mobile-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 14px;
+    background: var(--panel-bg);
+    border-bottom: 1px solid var(--panel-border);
+    flex-shrink: 0;
+    order: 1;
+    z-index: 20;
+  }
+  .mobile-logo {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--accent);
+    letter-spacing: 0.03em;
+  }
+  .mobile-header-actions { display: flex; gap: 6px; }
+  .mobile-export-btn {
+    padding: 8px 16px;
+    background: var(--accent);
+    border: none;
+    border-radius: 7px;
+    color: white;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .mobile-export-btn.sec {
+    background: rgba(255,255,255,0.1);
+    border: 1px solid rgba(255,255,255,0.15);
+    color: var(--panel-text);
+  }
+
+  /* Canvas area */
+  .canvas-area {
+    order: 2;
+    flex: 0 0 240px;
+    height: 240px;
+    overflow: hidden;
+    justify-content: flex-start;
+    align-items: flex-start;
+  }
+  .canvas-wrapper {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .canvas-inner {
+    min-width: unset;
+    min-height: unset;
+    width: 100%;
+    height: 100%;
+    padding: 16px;
+    transform-origin: center center;
+  }
+  .canvas-hint { display: none; }
+  .zoom-bar { display: none; }
+  .version-badge { display: none; }
+  #sizeBadge { display: none; }
+  .resize-handle { display: none !important; }
+
+  /* Mobile tab bar */
+  .mobile-tab-bar {
+    display: flex;
+    background: var(--panel-bg);
+    border-top: 1px solid var(--panel-border);
+    flex-shrink: 0;
+    order: 3;
+    z-index: 20;
+  }
+  .mobile-tab-btn {
+    flex: 1;
+    padding: 10px 8px 8px;
+    background: none;
+    border: none;
+    border-top: 2px solid transparent;
+    color: var(--panel-muted);
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    transition: color 0.15s, border-color 0.15s;
+    font-family: inherit;
+  }
+  .mobile-tab-btn.active {
+    color: var(--accent);
+    border-top-color: var(--accent);
+  }
+  .mobile-tab-icon { font-size: 16px; }
+
+  /* Panels */
+  .left-panel {
+    order: 4;
+    display: none;
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    border-right: none;
+  }
+  .left-panel.mobile-active { display: flex; }
+  .left-panel .panel-header { display: none; }
+  .left-panel .panel-bottom .export-scale-btns { display: none; }
+  .left-panel .panel-bottom .export-btns { display: none; }
+
+  .right-panel {
+    order: 4;
+    display: none;
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    border-left: none;
+  }
+  .right-panel.mobile-active { display: flex; flex-direction: column; }
+  .right-panel .panel-header { display: none; }
+
+  /* Larger touch targets */
+  .pos-btn { padding: 10px 0; font-size: 16px; min-height: 40px; }
+  .add-block-btn { padding: 12px 14px; font-size: 13px; }
+  .swatch { width: 30px; height: 30px; }
+  .custom-color-btn { width: 30px; height: 30px; }
+  .upload-btn { padding: 12px 14px; font-size: 13px; }
+
+  /* Block controls: reposition to be visible inside card */
+  .block-controls {
+    right: 2px;
+    top: 2px;
+    transform: none;
+    flex-direction: row;
+    gap: 2px;
+  }
+  .block-ctrl-btn {
+    width: 28px;
+    height: 28px;
+    font-size: 12px;
+  }
+
+  /* Bigger crop handles for touch */
+  .crop-handle {
+    width: 22px;
+    height: 22px;
+    border-radius: 3px;
+  }
+  .crop-handle-nw { top: -11px; left: -11px; }
+  .crop-handle-ne { top: -11px; right: -11px; }
+  .crop-handle-sw { bottom: -11px; left: -11px; }
+  .crop-handle-se { bottom: -11px; right: -11px; }
+
+  /* Crop modal: full screen on mobile */
+  .crop-modal-box {
+    width: 100vw;
+    max-width: 100vw;
+    height: 100svh;
+    height: 100dvh;
+    max-height: 100svh;
+    border-radius: 0;
+    display: flex;
+    flex-direction: column;
+  }
+  .crop-canvas-wrapper {
+    flex: 1;
+    overflow: auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    -webkit-overflow-scrolling: touch;
+  }
+  .crop-btn-cancel, .crop-btn-confirm {
+    padding: 10px 20px;
+    font-size: 13px;
   }
 }
 

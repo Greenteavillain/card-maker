@@ -11,6 +11,15 @@
 </head>
 <body>
   <div class="app">
+    <!-- MOBILE HEADER -->
+    <div class="mobile-header">
+      <span class="mobile-logo">✦ 카드메이커</span>
+      <div class="mobile-header-actions">
+        <button class="mobile-export-btn" id="mobileExportPng">PNG</button>
+        <button class="mobile-export-btn sec" id="mobileExportJpg">JPG</button>
+      </div>
+    </div>
+
     <!-- LEFT PANEL: TOOLS -->
     <aside class="panel left-panel">
       <div class="panel-header">
@@ -46,6 +55,20 @@
       </div>
 
       
+
+      <div class="panel-section">
+        <div class="section-label">카드 크기</div>
+        <div class="slider-row">
+          <span class="size-label">W</span>
+          <input type="range" id="cardWidthSlider" min="300" max="1000" value="720" step="10" />
+          <span id="cardWidthVal" class="size-val">720</span>
+        </div>
+        <div class="slider-row" style="margin-top:8px">
+          <span class="size-label">H</span>
+          <input type="range" id="cardHeightSlider" min="200" max="800" value="470" step="10" />
+          <span id="cardHeightVal" class="size-val">470</span>
+        </div>
+      </div>
 
       <div class="panel-section">
         <div class="section-label">폰트 전체 바꾸기</div>
@@ -144,6 +167,18 @@
         <div class="version-panel-inner" id="versionPanelInner"></div>
       </div>
     </main>
+
+    <!-- MOBILE TAB BAR -->
+    <div class="mobile-tab-bar">
+      <button class="mobile-tab-btn active" data-tab="tools">
+        <span class="mobile-tab-icon">◧</span>
+        <span>도구</span>
+      </button>
+      <button class="mobile-tab-btn" data-tab="blocks">
+        <span class="mobile-tab-icon">&#9776;</span>
+        <span>블록 편집</span>
+      </button>
+    </div>
 
     <!-- RIGHT PANEL: BLOCK EDITOR -->
     <aside class="panel right-panel" id="rightPanel">

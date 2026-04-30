@@ -223,6 +223,7 @@ function render() {
   renderBlockEditor();
   syncPanelUI();
   requestAnimationFrame(positionHandles);
+  requestAnimationFrame(mobileAutoFit);
 }
 
 function initFontSelect() {
@@ -251,9 +252,15 @@ function syncPanelUI() {
   sel.value = state.font;
   document.querySelectorAll('.pos-btn').forEach(b => b.classList.toggle('active', b.dataset.pos === state.imagePos));
 
-  // 카드 크기 배지
+  // 카드 크기 배지 & 슬라이더 동기화
   const sizeBadge = document.getElementById('sizeBadge');
   if (sizeBadge) sizeBadge.textContent = `${state.cardW} × ${state.cardH}`;
+  const wSlider = document.getElementById('cardWidthSlider');
+  const hSlider = document.getElementById('cardHeightSlider');
+  const wVal = document.getElementById('cardWidthVal');
+  const hVal = document.getElementById('cardHeightVal');
+  if (wSlider && document.activeElement !== wSlider) { wSlider.value = state.cardW; if (wVal) wVal.textContent = state.cardW; }
+  if (hSlider && document.activeElement !== hSlider) { hSlider.value = state.cardH; if (hVal) hVal.textContent = state.cardH; }
 
   // hex input
   const bgHexInput = document.getElementById('bgHexInput');
@@ -866,6 +873,10 @@ function selectBlock(id) {
   state.selectedBlockId = id;
   renderBlocks();
   renderBlockEditor();
+  if (window.innerWidth <= 768) {
+    const blocksTab = document.querySelector('[data-tab="blocks"]');
+    if (blocksTab) blocksTab.click();
+  }
 }
 
 function deleteBlock(id) {
@@ -945,11 +956,15 @@ document.addEventListener('mousemove', e => {
   if (!resizing) return;
   const dx = e.clientX - resizing.startX;
   const dy = e.clientY - resizing.startY;
-  if (resizing.dir.includes('e')) state.cardW = Math.max(300, resizing.startW + dx);
-  if (resizing.dir.includes('s')) state.cardH = Math.max(200, resizing.startH + dy);
+  if (resizing.dir.includes('e')) state.cardW = Math.max(300, Math.min(1000, resizing.startW + dx));
+  if (resizing.dir.includes('s')) state.cardH = Math.max(200, Math.min(800, resizing.startH + dy));
   document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
   const sizeBadge = document.getElementById('sizeBadge');
   if (sizeBadge) sizeBadge.textContent = `${state.cardW} × ${state.cardH}`;
+  const wSlider = document.getElementById('cardWidthSlider');
+  const hSlider = document.getElementById('cardHeightSlider');
+  if (wSlider) { wSlider.value = state.cardW; const v = document.getElementById('cardWidthVal'); if (v) v.textContent = state.cardW; }
+  if (hSlider) { hSlider.value = state.cardH; const v = document.getElementById('cardHeightVal'); if (v) v.textContent = state.cardH; }
   renderCard();
   positionHandles();
 });
@@ -1122,6 +1137,65 @@ document.addEventListener('mouseup', () => {
   cropState.resizing = null;
 });
 
+/* ---- CROP TOUCH SUPPORT ---- */
+function getCropTouchPos(e) {
+  const t = e.touches[0] || e.changedTouches[0];
+  return { clientX: t.clientX, clientY: t.clientY };
+}
+
+cropBox.addEventListener('touchstart', e => {
+  if (e.target.classList.contains('crop-handle')) return;
+  e.preventDefault();
+  const pos = getCropTouchPos(e);
+  cropState.dragging = true;
+  cropState.dragStart = { mx: pos.clientX, my: pos.clientY, bx: cropState.box.x, by: cropState.box.y };
+}, { passive: false });
+
+document.querySelectorAll('.crop-handle').forEach(handle => {
+  handle.addEventListener('touchstart', e => {
+    e.preventDefault();
+    e.stopPropagation();
+    const pos = getCropTouchPos(e);
+    cropState.resizing = { dir: handle.dataset.dir, mx: pos.clientX, my: pos.clientY, box: { ...cropState.box } };
+  }, { passive: false });
+});
+
+document.addEventListener('touchmove', e => {
+  if (!cropState.dragging && !cropState.resizing) return;
+  e.preventDefault();
+  const pos = getCropTouchPos(e);
+  const { displayW, displayH } = cropState;
+  const minSize = 20;
+
+  if (cropState.dragging) {
+    const dx = pos.clientX - cropState.dragStart.mx;
+    const dy = pos.clientY - cropState.dragStart.my;
+    let nx = Math.max(0, Math.min(displayW - cropState.box.w, cropState.dragStart.bx + dx));
+    let ny = Math.max(0, Math.min(displayH - cropState.box.h, cropState.dragStart.by + dy));
+    cropState.box.x = nx;
+    cropState.box.y = ny;
+    updateCropBox();
+  }
+
+  if (cropState.resizing) {
+    const { dir, mx, my, box } = cropState.resizing;
+    const dx = pos.clientX - mx;
+    const dy = pos.clientY - my;
+    let { x, y, w, h } = box;
+    if (dir.includes('e')) w = Math.max(minSize, Math.min(displayW - x, w + dx));
+    if (dir.includes('s')) h = Math.max(minSize, Math.min(displayH - y, h + dy));
+    if (dir.includes('w')) { const nw = Math.max(minSize, w - dx); x = Math.max(0, x + w - nw); w = nw; }
+    if (dir.includes('n')) { const nh = Math.max(minSize, h - dy); y = Math.max(0, y + h - nh); h = nh; }
+    cropState.box = { x, y, w, h };
+    updateCropBox();
+  }
+}, { passive: false });
+
+document.addEventListener('touchend', () => {
+  cropState.dragging = false;
+  cropState.resizing = null;
+});
+
 document.getElementById('cropCancel').addEventListener('click', () => {
   document.getElementById('cropModal').classList.remove('open');
 });
@@ -1191,8 +1265,32 @@ document.getElementById('imagePositionGrid').querySelectorAll('.pos-btn').forEac
   });
 });
 
+/* ============================================================
+   CARD SIZE SLIDERS
+   ============================================================ */
+document.getElementById('cardWidthSlider').addEventListener('input', e => {
+  state.cardW = parseInt(e.target.value);
+  document.getElementById('cardWidthVal').textContent = state.cardW;
+  const sizeBadge = document.getElementById('sizeBadge');
+  if (sizeBadge) sizeBadge.textContent = `${state.cardW} × ${state.cardH}`;
+  renderCard();
+  requestAnimationFrame(positionHandles);
+  requestAnimationFrame(mobileAutoFit);
+  scheduleSave();
+});
+document.getElementById('cardWidthSlider').addEventListener('change', snapshot);
 
-
+document.getElementById('cardHeightSlider').addEventListener('input', e => {
+  state.cardH = parseInt(e.target.value);
+  document.getElementById('cardHeightVal').textContent = state.cardH;
+  const sizeBadge = document.getElementById('sizeBadge');
+  if (sizeBadge) sizeBadge.textContent = `${state.cardW} × ${state.cardH}`;
+  renderCard();
+  requestAnimationFrame(positionHandles);
+  requestAnimationFrame(mobileAutoFit);
+  scheduleSave();
+});
+document.getElementById('cardHeightSlider').addEventListener('change', snapshot);
 
 /* ============================================================
    FONT & COLORS
@@ -1398,6 +1496,66 @@ function initVersionPanel() {
 }
 
 
+/* ============================================================
+   MOBILE: AUTO-FIT ZOOM
+   ============================================================ */
+function mobileAutoFit() {
+  if (window.innerWidth > 768) return;
+  const canvasArea = document.querySelector('.canvas-area');
+  const inner = document.querySelector('.canvas-inner');
+  if (!canvasArea || !inner) return;
+  const padH = 32, padW = 32;
+  const availW = canvasArea.clientWidth - padW;
+  const availH = canvasArea.clientHeight - padH;
+  if (availW <= 0 || availH <= 0) return;
+  const scale = Math.min(availW / state.cardW, availH / state.cardH, 1);
+  inner.style.transform = `scale(${scale})`;
+  inner.style.transformOrigin = 'center center';
+}
+
+window.addEventListener('resize', () => {
+  requestAnimationFrame(positionHandles);
+  mobileAutoFit();
+});
+
+/* ============================================================
+   MOBILE: TAB SWITCHING
+   ============================================================ */
+function initMobileTabs() {
+  const tabBtns = document.querySelectorAll('.mobile-tab-btn');
+  if (!tabBtns.length) return;
+  const leftPanel = document.querySelector('.left-panel');
+  const rightPanel = document.querySelector('.right-panel');
+
+  function activateTab(tab) {
+    tabBtns.forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
+    leftPanel.classList.toggle('mobile-active', tab === 'tools');
+    rightPanel.classList.toggle('mobile-active', tab === 'blocks');
+  }
+
+  tabBtns.forEach(btn => btn.addEventListener('click', () => activateTab(btn.dataset.tab)));
+  activateTab('tools');
+}
+
+/* ============================================================
+   MOBILE: EXPORT BUTTONS
+   ============================================================ */
+document.getElementById('mobileExportPng')?.addEventListener('click', async () => {
+  const canvas = await captureCanvas(exportScale);
+  const link = document.createElement('a');
+  link.download = `card_${exportScale}x.png`;
+  link.href = canvas.toDataURL('image/png');
+  link.click();
+});
+
+document.getElementById('mobileExportJpg')?.addEventListener('click', async () => {
+  const canvas = await captureCanvas(exportScale);
+  const link = document.createElement('a');
+  link.download = `card_${exportScale}x.jpg`;
+  link.href = canvas.toDataURL('image/jpeg', 0.95);
+  link.click();
+});
+
 function applyDefaultImage() {
   return new Promise(resolve => {
     const img = new Image();
@@ -1431,6 +1589,7 @@ function applyDefaultImage() {
   initFontSelect();
   render();
   initVersionPanel();
+  initMobileTabs();
 
   // IDB에서 이미지 복원 (비동기), 없으면 기본 이미지
   if (loaded) {
